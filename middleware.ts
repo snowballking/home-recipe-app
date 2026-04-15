@@ -50,21 +50,84 @@ export async function middleware(request: NextRequest) {
     return redirect;
   }
 
+  // ── Not logged in: block /dashboard ──────────────────────────
   if (!user && path.startsWith("/dashboard")) {
     return withSessionCookies(
       NextResponse.redirect(new URL("/login", request.url))
     );
   }
 
-  if (user && (path === "/login" || path === "/signup")) {
-    return withSessionCookies(
-      NextResponse.redirect(new URL("/dashboard", request.url))
-    );
+  // ── Logged in: enforce admin approval for app content ────────
+  if (user) {
+    const protectedPath =
+      path.startsWith("/dashboard") ||
+      path.startsWith("/market") ||
+      path.startsWith("/explore") ||
+      path.startsWith("/recipe") ||
+      path.startsWith("/plan") ||
+      path.startsWith("/user") ||
+      path.startsWith("/admin");
+
+    if (protectedPath) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_approved, is_admin")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      // Admins bypass; everyone else must be approved.
+      if (!profile?.is_admin && !profile?.is_approved) {
+        return withSessionCookies(
+          NextResponse.redirect(new URL("/pending-approval", request.url))
+        );
+      }
+
+      // Non-admins cannot access /admin
+      if (path.startsWith("/admin") && !profile?.is_admin) {
+        return withSessionCookies(
+          NextResponse.redirect(new URL("/dashboard/recipes", request.url))
+        );
+      }
+    }
+
+    if (path === "/login" || path === "/signup") {
+      return withSessionCookies(
+        NextResponse.redirect(new URL("/dashboard/recipes", request.url))
+      );
+    }
+
+    // Already approved: don't let them linger on /pending-approval
+    if (path === "/pending-approval") {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_approved, is_admin")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (profile?.is_approved || profile?.is_admin) {
+        return withSessionCookies(
+          NextResponse.redirect(new URL("/dashboard/recipes", request.url))
+        );
+      }
+    }
   }
 
   return supabaseResponse;
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/login", "/signup"],
+  matcher: [
+    "/dashboard/:path*",
+    "/login",
+    "/signup",
+    "/market",
+    "/market/:path*",
+    "/explore",
+    "/explore/:path*",
+    "/recipe/:path*",
+    "/plan/:path*",
+    "/user/:path*",
+    "/admin",
+    "/admin/:path*",
+    "/pending-approval",
+  ],
 };

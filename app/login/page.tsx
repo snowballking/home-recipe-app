@@ -40,7 +40,7 @@ function LoginForm() {
       return;
     }
 
-    router.push("/dashboard");
+    router.push("/dashboard/recipes");
     router.refresh();
   }
 
@@ -53,7 +53,7 @@ function LoginForm() {
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${origin}/auth/callback?next=${encodeURIComponent("/dashboard")}`,
+        redirectTo: `${origin}/auth/callback?next=${encodeURIComponent("/dashboard/recipes")}`,
       },
     });
 

@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 function safeNextPath(next: string | null): string {
   if (!next || !next.startsWith("/") || next.startsWith("//")) {
-    return "/dashboard";
+    return "/dashboard/recipes";
   }
   return next;
 }
