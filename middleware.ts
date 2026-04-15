@@ -90,7 +90,7 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    if (path === "/login" || path === "/signup") {
+    if (path === "/" || path === "/login" || path === "/signup") {
       return withSessionCookies(
         NextResponse.redirect(new URL("/dashboard/recipes", request.url))
       );
@@ -116,6 +116,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/",
     "/dashboard/:path*",
     "/login",
     "/signup",
