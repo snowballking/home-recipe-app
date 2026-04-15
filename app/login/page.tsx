@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 
+export const dynamic = "force-dynamic";
+
 // The login form now lives on the home page ("/").
 // This route exists as a permanent redirect so any old links keep working.
 interface PageProps {

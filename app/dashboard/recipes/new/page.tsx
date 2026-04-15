@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { CUISINES, MEAL_TYPES, DIETARY_TAGS, DIFFICULTIES, RECIPE_CATEGORIES } from "@/lib/types";
@@ -27,7 +27,7 @@ const PLATFORM_INFO: Record<string, { label: string; icon: string; color: string
   instagram: { label: "Instagram", icon: "📷", color: "text-pink-600" },
 };
 
-export default function NewRecipePage() {
+function NewRecipePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
@@ -945,5 +945,19 @@ export default function NewRecipePage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function NewRecipePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-full items-center justify-center bg-zinc-50 dark:bg-zinc-950">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+        </div>
+      }
+    >
+      <NewRecipePageInner />
+    </Suspense>
   );
 }

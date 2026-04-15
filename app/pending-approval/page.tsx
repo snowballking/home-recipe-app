@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { LogoutButton } from "@/app/dashboard/logout-button";
 import type { Profile } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+
 export default async function PendingApprovalPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

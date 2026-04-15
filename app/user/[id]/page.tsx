@@ -6,6 +6,8 @@ import { FollowButton } from "@/app/components/follow-button";
 import { EditProfileButton } from "./edit-profile-button";
 import type { Recipe, Profile } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+
 interface PageProps {
   params: Promise<{ id: string }>;
 }

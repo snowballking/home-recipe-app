@@ -5,6 +5,8 @@ import { MealPlanCommentSection } from "@/app/components/meal-plan-comments";
 import Link from "next/link";
 import type { MealPlan, MealPlanSlot, Recipe, Profile, NutritionSummary } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+
 interface SlotWithRecipe extends MealPlanSlot {
   recipes?: Recipe;
 }

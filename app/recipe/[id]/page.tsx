@@ -8,6 +8,8 @@ import { FollowButton } from "@/app/components/follow-button";
 import { RecipeRating } from "./recipe-rating";
 import type { Recipe, Ingredient } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+
 interface PageProps {
   params: Promise<{ id: string }>;
 }
