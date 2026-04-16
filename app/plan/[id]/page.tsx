@@ -77,12 +77,12 @@ function calculateDailyNutrition(
   return nutrition;
 }
 
-function getSlotForCell(
+function getSlotsForCell(
   slots: SlotWithRecipe[],
   date: string,
   mealType: string
-): SlotWithRecipe | undefined {
-  return slots.find((s) => s.plan_date === date && s.meal_type === mealType);
+): SlotWithRecipe[] {
+  return slots.filter((s) => s.plan_date === date && s.meal_type === mealType);
 }
 
 function generateDates(startDate: string, endDate: string): string[] {
@@ -226,55 +226,64 @@ export default async function PublicMealPlanPage({
 
                     {/* Meal Type Cells */}
                     {mealTypes.map((mealType) => {
-                      const slot = getSlotForCell(slots, date, mealType);
+                      const cellSlots = getSlotsForCell(slots, date, mealType);
 
                       return (
                         <td
                           key={`${date}-${mealType}`}
-                          className="px-4 py-4 text-sm border-r border-zinc-200 dark:border-zinc-800"
+                          className="px-3 py-3 text-sm border-r border-zinc-200 dark:border-zinc-800 align-top"
                         >
-                          {slot && slot.recipes ? (
-                            <div className="space-y-2">
-                              <div className="rounded-lg bg-indigo-50 dark:bg-indigo-900/20 p-2 text-indigo-700 dark:text-indigo-400 font-medium text-xs break-words">
-                                {slot.recipes.title}
-                              </div>
+                          {cellSlots.length > 0 ? (
+                            <div className="space-y-1.5">
+                              {cellSlots.map((slot) =>
+                                slot.recipes ? (
+                                  <div key={slot.id} className="space-y-1">
+                                    <div className="flex items-start gap-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 px-1.5 py-1.5">
+                                      {slot.recipes.hero_image_url ? (
+                                        <img
+                                          src={slot.recipes.hero_image_url}
+                                          alt=""
+                                          className="h-8 w-8 flex-shrink-0 rounded-md object-cover"
+                                        />
+                                      ) : (
+                                        <div className="h-8 w-8 flex-shrink-0 rounded-md bg-indigo-100 dark:bg-indigo-800/40 flex items-center justify-center">
+                                          <svg className="h-4 w-4 text-indigo-300 dark:text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>
+                                        </div>
+                                      )}
+                                      <div className="min-w-0 flex-1">
+                                        <span className="text-indigo-700 dark:text-indigo-400 font-medium text-xs leading-snug break-words">
+                                          {slot.recipes.title}
+                                        </span>
+                                        {slot.recipes.calories_per_serving != null && (
+                                          <div className="text-[11px] font-normal text-zinc-500 dark:text-zinc-400">
+                                            {Math.round(slot.recipes.calories_per_serving * (slot.servings || 1))} cal
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
 
-                              <div className="text-xs text-zinc-600 dark:text-zinc-400">
-                                {slot.recipes.calories_per_serving && (
-                                  <div>
-                                    {Math.round(
-                                      slot.recipes.calories_per_serving *
-                                        (slot.servings || 1)
-                                    )}{" "}
-                                    cal
+                                    {/* Action Buttons */}
+                                    {slot.recipes.source_url && (
+                                      <div className="flex flex-wrap gap-1">
+                                        <a
+                                          href={slot.recipes.source_url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-block rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30 transition-colors"
+                                        >
+                                          View Original
+                                        </a>
+                                        <Link
+                                          href={`/dashboard/recipes/new?url=${encodeURIComponent(slot.recipes.source_url)}`}
+                                          className="inline-block rounded-md bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:text-indigo-400 dark:hover:bg-indigo-900/30 transition-colors"
+                                        >
+                                          Import
+                                        </Link>
+                                      </div>
+                                    )}
                                   </div>
-                                )}
-                              </div>
-
-                              {/* Action Buttons */}
-                              <div className="flex flex-col gap-1">
-                                {slot.recipes.source_url && (
-                                  <a
-                                    href={slot.recipes.source_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-block rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30 transition-colors"
-                                  >
-                                    View Original
-                                  </a>
-                                )}
-
-                                {slot.recipes.source_url && (
-                                  <Link
-                                    href={`/dashboard/recipes/new?url=${encodeURIComponent(
-                                      slot.recipes.source_url
-                                    )}`}
-                                    className="inline-block rounded-md bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:text-indigo-400 dark:hover:bg-indigo-900/30 transition-colors"
-                                  >
-                                    Import to My Recipes
-                                  </Link>
-                                )}
-                              </div>
+                                ) : null
+                              )}
                             </div>
                           ) : (
                             <div className="text-xs text-zinc-400">—</div>

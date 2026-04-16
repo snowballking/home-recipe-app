@@ -61,7 +61,7 @@ export default function MealPlanDetailPage() {
         .select(`
           *,
           recipes:recipe_id (
-            id, user_id, title, calories_per_serving, protein_grams, carbs_grams, fat_grams
+            id, user_id, title, hero_image_url, calories_per_serving, protein_grams, carbs_grams, fat_grams
           )
         `)
         .eq("meal_plan_id", planId)
@@ -115,7 +115,7 @@ export default function MealPlanDetailPage() {
         .select(`
           *,
           recipes:recipe_id (
-            id, user_id, title, calories_per_serving, protein_grams, carbs_grams, fat_grams
+            id, user_id, title, hero_image_url, calories_per_serving, protein_grams, carbs_grams, fat_grams
           )
         `)
         .eq("meal_plan_id", planId)
@@ -123,7 +123,6 @@ export default function MealPlanDetailPage() {
         .order("meal_type", { ascending: true });
 
       setSlots((slotsData ?? []) as SlotWithRecipe[]);
-      setActiveCell(null);
       setSearchQuery("");
     }
     setSaving(false);
@@ -149,7 +148,7 @@ export default function MealPlanDetailPage() {
         .select(`
           *,
           recipes:recipe_id (
-            id, user_id, title, calories_per_serving, protein_grams, carbs_grams, fat_grams
+            id, user_id, title, hero_image_url, calories_per_serving, protein_grams, carbs_grams, fat_grams
           )
         `)
         .eq("meal_plan_id", planId)
@@ -235,9 +234,9 @@ export default function MealPlanDetailPage() {
     return nutrition;
   }
 
-  // Get slot for a specific date and meal type
-  function getSlotForCell(date: string, mealType: string): SlotWithRecipe | undefined {
-    return slots.find((s) => s.plan_date === date && s.meal_type === mealType);
+  // Get all slots for a specific date and meal type (supports multiple dishes)
+  function getSlotsForCell(date: string, mealType: string): SlotWithRecipe[] {
+    return slots.filter((s) => s.plan_date === date && s.meal_type === mealType);
   }
 
   // Filter recipes for dropdown
@@ -400,127 +399,123 @@ export default function MealPlanDetailPage() {
 
                     {/* Meal Type Cells */}
                     {mealTypes.map((mealType) => {
-                      const slot = getSlotForCell(date, mealType);
+                      const cellSlots = getSlotsForCell(date, mealType);
                       const isActive =
                         activeCell?.date === date && activeCell?.mealType === mealType;
 
                       return (
                         <td
                           key={`${date}-${mealType}`}
-                          className="relative px-4 py-4 text-sm border-r border-zinc-200 dark:border-zinc-800"
+                          className="relative px-3 py-3 text-sm border-r border-zinc-200 dark:border-zinc-800 align-top"
                         >
-                          {slot && slot.recipes ? (
-                            // Recipe assigned
-                            <div
-                              className="relative group"
-                              onMouseEnter={() => setHoveredSlot(slot.id)}
-                              onMouseLeave={() => setHoveredSlot(null)}
-                            >
-                              <div className="rounded-lg bg-indigo-50 dark:bg-indigo-900/20 p-2 text-indigo-700 dark:text-indigo-400 font-medium text-xs break-words">
-                                {slot.recipes.title}
-                              </div>
-
-                              {/* Popover on hover */}
-                              {hoveredSlot === slot.id && (
-                                <div className="absolute z-50 left-0 top-full mt-1 w-48 rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shadow-lg p-3">
-                                  <p className="font-medium text-zinc-900 dark:text-zinc-100 text-sm mb-2">
+                          <div className="space-y-1.5">
+                            {/* Existing dishes */}
+                            {cellSlots.map((slot) =>
+                              slot.recipes ? (
+                                <div
+                                  key={slot.id}
+                                  className="group relative flex items-start gap-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 px-1.5 py-1.5"
+                                  onMouseEnter={() => setHoveredSlot(slot.id)}
+                                  onMouseLeave={() => setHoveredSlot(null)}
+                                >
+                                  {slot.recipes.hero_image_url ? (
+                                    <img
+                                      src={slot.recipes.hero_image_url}
+                                      alt=""
+                                      className="h-8 w-8 flex-shrink-0 rounded-md object-cover"
+                                    />
+                                  ) : (
+                                    <div className="h-8 w-8 flex-shrink-0 rounded-md bg-indigo-100 dark:bg-indigo-800/40 flex items-center justify-center">
+                                      <svg className="h-4 w-4 text-indigo-300 dark:text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>
+                                    </div>
+                                  )}
+                                  <span className="flex-1 text-indigo-700 dark:text-indigo-400 font-medium text-xs leading-snug break-words min-w-0">
                                     {slot.recipes.title}
-                                  </p>
-                                  <div className="space-y-1 text-xs text-zinc-600 dark:text-zinc-400 mb-3">
-                                    {slot.recipes.calories_per_serving && (
-                                      <div>
-                                        Calories:{" "}
-                                        <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                                          {Math.round(
-                                            slot.recipes.calories_per_serving *
-                                              (slot.servings || 1)
-                                          )}
-                                        </span>
-                                      </div>
-                                    )}
-                                    {slot.recipes.protein_grams && (
-                                      <div>
-                                        Protein:{" "}
-                                        <span className="font-medium">
-                                          {(
-                                            slot.recipes.protein_grams *
-                                            (slot.servings || 1)
-                                          ).toFixed(1)}
-                                          g
-                                        </span>
-                                      </div>
-                                    )}
-                                  </div>
+                                  </span>
                                   <button
                                     onClick={() => removeRecipeFromSlot(slot.id)}
                                     disabled={saving}
-                                    className="w-full rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30"
+                                    className="mt-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity rounded-full p-0.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+                                    title="Remove"
                                   >
-                                    Remove
+                                    <svg className="h-3 w-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3l6 6M9 3l-6 6" /></svg>
                                   </button>
+
+                                  {/* Nutrition popover on hover */}
+                                  {hoveredSlot === slot.id && (
+                                    <div className="absolute z-50 left-0 top-full mt-1 w-44 rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shadow-lg p-2.5">
+                                      <p className="font-medium text-zinc-900 dark:text-zinc-100 text-xs mb-1.5">
+                                        {slot.recipes.title}
+                                      </p>
+                                      <div className="space-y-0.5 text-[11px] text-zinc-600 dark:text-zinc-400">
+                                        {slot.recipes.calories_per_serving != null && (
+                                          <div>Cal: <span className="font-medium text-zinc-900 dark:text-zinc-100">{Math.round(slot.recipes.calories_per_serving * (slot.servings || 1))}</span></div>
+                                        )}
+                                        {slot.recipes.protein_grams != null && (
+                                          <div>Protein: <span className="font-medium">{(slot.recipes.protein_grams * (slot.servings || 1)).toFixed(1)}g</span></div>
+                                        )}
+                                        {slot.recipes.carbs_grams != null && (
+                                          <div>Carbs: <span className="font-medium">{(slot.recipes.carbs_grams * (slot.servings || 1)).toFixed(1)}g</span></div>
+                                        )}
+                                        {slot.recipes.fat_grams != null && (
+                                          <div>Fat: <span className="font-medium">{(slot.recipes.fat_grams * (slot.servings || 1)).toFixed(1)}g</span></div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
-                              )}
-                            </div>
-                          ) : (
-                            // Empty cell with + button
-                            <div>
+                              ) : null
+                            )}
+
+                            {/* + Add dish button — always visible */}
+                            <div className="relative">
                               <button
                                 onClick={() =>
-                                  setActiveCell({ date, mealType })
+                                  isActive
+                                    ? (setActiveCell(null), setSearchQuery(""))
+                                    : setActiveCell({ date, mealType })
                                 }
-                                className="w-full rounded-lg border-2 border-dashed border-zinc-300 dark:border-zinc-600 py-2 px-2 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:border-indigo-500 hover:text-indigo-600 dark:hover:border-indigo-400 dark:hover:text-indigo-400 transition-colors"
+                                className={`w-full rounded-lg border border-dashed py-1 px-2 text-xs font-medium transition-colors ${
+                                  cellSlots.length === 0
+                                    ? "border-zinc-300 dark:border-zinc-600 text-zinc-500 dark:text-zinc-400 hover:border-indigo-500 hover:text-indigo-600 dark:hover:border-indigo-400 dark:hover:text-indigo-400"
+                                    : "border-zinc-200 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 hover:border-indigo-400 hover:text-indigo-500 dark:hover:border-indigo-400 dark:hover:text-indigo-400"
+                                }`}
                               >
-                                +
+                                {cellSlots.length === 0 ? "+ Add dish" : "+"}
                               </button>
 
-                              {/* Dropdown when active */}
+                              {/* Recipe search dropdown */}
                               {isActive && (
                                 <div className="absolute z-50 left-0 top-full mt-1 w-56 rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shadow-lg">
-                                  <div className="border-b border-zinc-200 dark:border-zinc-700 p-3">
+                                  <div className="border-b border-zinc-200 dark:border-zinc-700 p-2.5">
                                     <input
                                       type="text"
                                       placeholder="Search recipes..."
                                       value={searchQuery}
-                                      onChange={(e) =>
-                                        setSearchQuery(e.target.value)
-                                      }
-                                      className="w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                      onChange={(e) => setSearchQuery(e.target.value)}
+                                      className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 px-2.5 py-1.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                                       autoFocus
                                     />
                                   </div>
-
-                                  <div className="max-h-64 overflow-y-auto">
+                                  <div className="max-h-56 overflow-y-auto">
                                     {filteredRecipes.length === 0 ? (
-                                      <div className="p-3 text-sm text-center text-zinc-500 dark:text-zinc-400">
+                                      <div className="p-3 text-xs text-center text-zinc-500 dark:text-zinc-400">
                                         No recipes found
                                       </div>
                                     ) : (
                                       filteredRecipes.map((recipe) => (
                                         <button
                                           key={recipe.id}
-                                          onClick={() => {
-                                            addRecipeToSlot(
-                                              recipe.id,
-                                              date,
-                                              mealType
-                                            );
-                                          }}
+                                          onClick={() => addRecipeToSlot(recipe.id, date, mealType)}
                                           disabled={saving}
-                                          className="w-full border-b border-zinc-100 dark:border-zinc-700 px-3 py-2 text-left text-sm text-zinc-900 dark:text-zinc-100 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors flex items-start justify-between"
+                                          className="w-full border-b border-zinc-100 dark:border-zinc-700 px-3 py-2 text-left text-sm text-zinc-900 dark:text-zinc-100 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
                                         >
-                                          <div>
-                                            <div className="font-medium">
-                                              {recipe.title}
+                                          <div className="font-medium text-xs">{recipe.title}</div>
+                                          {recipe.calories_per_serving != null && (
+                                            <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                                              {Math.round(recipe.calories_per_serving)} cal
                                             </div>
-                                            {recipe.calories_per_serving && (
-                                              <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                                                {Math.round(
-                                                  recipe.calories_per_serving
-                                                )}{" "}
-                                                cal
-                                              </div>
-                                            )}
-                                          </div>
+                                          )}
                                         </button>
                                       ))
                                     )}
@@ -528,7 +523,7 @@ export default function MealPlanDetailPage() {
                                 </div>
                               )}
                             </div>
-                          )}
+                          </div>
                         </td>
                       );
                     })}
