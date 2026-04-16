@@ -4,6 +4,7 @@ import { NavBar } from "@/app/components/nav-bar";
 import { RecipeCard } from "@/app/components/recipe-card";
 import { FollowButton } from "@/app/components/follow-button";
 import { EditProfileButton } from "./edit-profile-button";
+import { ChangePassword } from "./change-password";
 import type { Recipe, Profile } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -170,6 +171,9 @@ export default async function UserProfilePage({ params }: PageProps) {
             </div>
           </div>
         </div>
+
+        {/* Change Password (owner only) */}
+        {isOwner && viewerEmail && <ChangePassword email={viewerEmail} />}
 
         {/* User's Recipes */}
         <div className="mt-8">
