@@ -53,22 +53,10 @@ export default function SignupPage() {
             </svg>
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-            Check your email
+            Thanks for signing up!
           </h1>
-          <p className="mt-3 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-            We sent a confirmation link to{" "}
-            <span className="font-medium text-zinc-900 dark:text-zinc-200">
-              {email}
-            </span>
-            . Open it to verify your account.
-          </p>
           <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-            ⏳ <strong>Almost there!</strong> This app is for close friends and family, so the
-            administrator will need to approve your account before you can use it. You&apos;ll
-            see a waiting screen the first time you sign in.
-          </p>
-          <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-500">
-            If you don&apos;t see the email, check your spam folder.
+            Nathan will approve your account shortly. Hope you find good recipes in this web app!
           </p>
           <Link
             href="/login"
