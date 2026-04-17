@@ -7,10 +7,13 @@ import Link from "next/link";
 import { RecipeCard } from "@/app/components/recipe-card";
 import { RECIPE_CATEGORIES, CUISINES } from "@/lib/types";
 import type { Recipe, RecipeCategory } from "@/lib/types";
+import { useLanguage } from "@/lib/i18n/language-context";
+import { translateCategory } from "@/lib/i18n/translations";
 
 export default function MyRecipesPage() {
   const router = useRouter();
   const supabase = createClient();
+  const { locale, t } = useLanguage();
   const [allRecipes, setAllRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState<RecipeCategory>("all");
@@ -41,7 +44,12 @@ export default function MyRecipesPage() {
     return allRecipes.filter((r) => {
       if (category !== "all" && r.category !== category) return false;
       if (cuisineFilter && r.cuisine !== cuisineFilter) return false;
-      if (search.trim() && !r.title.toLowerCase().includes(search.trim().toLowerCase())) return false;
+      if (search.trim()) {
+        const q = search.trim().toLowerCase();
+        const matchesEn = r.title.toLowerCase().includes(q);
+        const matchesZh = r.title_zh ? r.title_zh.includes(q) : false;
+        if (!matchesEn && !matchesZh) return false;
+      }
       return true;
     });
   }, [allRecipes, category, cuisineFilter, search]);
@@ -54,12 +62,12 @@ export default function MyRecipesPage() {
     const groups: { label: string; icon: string; recipes: Recipe[] }[] = [];
     for (const cat of categoryOptions) {
       const catRecipes = filtered.filter((r) => r.category === cat.value);
-      if (catRecipes.length > 0) groups.push({ label: cat.label, icon: cat.icon, recipes: catRecipes });
+      if (catRecipes.length > 0) groups.push({ label: translateCategory(cat.value, locale), icon: cat.icon, recipes: catRecipes });
     }
     const uncategorized = filtered.filter((r) => !r.category || !categoryOptions.some((c) => c.value === r.category));
-    if (uncategorized.length > 0) groups.push({ label: "Other", icon: "📋", recipes: uncategorized });
+    if (uncategorized.length > 0) groups.push({ label: t("market.other"), icon: "📋", recipes: uncategorized });
     return groups;
-  }, [filtered, category, categoryOptions]);
+  }, [filtered, category, categoryOptions, t, locale]);
 
   const publicCount = allRecipes.filter((r) => r.is_public).length;
   const privateCount = allRecipes.filter((r) => !r.is_public).length;
@@ -78,14 +86,14 @@ export default function MyRecipesPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-zinc-50">My Recipes</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-zinc-50">{t("my_recipes.title")}</h1>
             <p className="mt-1 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">
-              {allRecipes.length} recipes ({publicCount} public, {privateCount} private)
+              {allRecipes.length} {t("market.recipes_count")} ({publicCount} {t("my_recipes.public")}, {privateCount} {t("my_recipes.private")})
             </p>
           </div>
           <Link href="/dashboard/recipes/new"
             className="rounded-lg bg-indigo-600 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
-            + New Recipe
+            {t("my_recipes.new_recipe")}
           </Link>
         </div>
 
@@ -99,7 +107,7 @@ export default function MyRecipesPage() {
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search your recipes..."
+                  placeholder={t("my_recipes.search")}
                   className="w-full rounded-lg border border-zinc-300 bg-white py-2 pl-9 pr-4 text-sm text-zinc-900 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
                 />
               </div>
@@ -108,7 +116,7 @@ export default function MyRecipesPage() {
                 onChange={(e) => setCuisineFilter(e.target.value)}
                 className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
               >
-                <option value="">All Cuisines</option>
+                <option value="">{t("market.all_cuisines")}</option>
                 {CUISINES.map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
@@ -125,7 +133,7 @@ export default function MyRecipesPage() {
                     : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
                 }`}
               >
-                All
+                {t("market.all")}
               </button>
               {categoryOptions.map((cat) => (
                 <button
@@ -137,7 +145,7 @@ export default function MyRecipesPage() {
                       : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
                   }`}
                 >
-                  {cat.icon} {cat.label}
+                  {cat.icon} {translateCategory(cat.value, locale)}
                 </button>
               ))}
             </div>
@@ -148,23 +156,23 @@ export default function MyRecipesPage() {
         {allRecipes.length === 0 ? (
           <div className="mt-12 text-center">
             <div className="text-5xl">📝</div>
-            <h2 className="mt-4 text-lg font-semibold text-zinc-900 dark:text-zinc-50">No recipes yet</h2>
-            <p className="mt-2 text-sm text-zinc-500">Start building your recipe collection by adding your first recipe.</p>
+            <h2 className="mt-4 text-lg font-semibold text-zinc-900 dark:text-zinc-50">{t("my_recipes.no_recipes")}</h2>
+            <p className="mt-2 text-sm text-zinc-500">{t("my_recipes.no_recipes_hint")}</p>
             <Link href="/dashboard/recipes/new"
               className="mt-4 inline-block rounded-lg bg-indigo-600 px-6 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-              Add Your First Recipe
+              {t("my_recipes.add_first")}
             </Link>
           </div>
         ) : filtered.length === 0 ? (
           <div className="mt-12 text-center">
             <div className="text-5xl">🔍</div>
-            <h2 className="mt-4 text-lg font-semibold text-zinc-900 dark:text-zinc-50">No matches</h2>
-            <p className="mt-2 text-sm text-zinc-500">No recipes match your current filters.</p>
+            <h2 className="mt-4 text-lg font-semibold text-zinc-900 dark:text-zinc-50">{t("my_recipes.no_matches")}</h2>
+            <p className="mt-2 text-sm text-zinc-500">{t("my_recipes.no_matches_hint")}</p>
           </div>
         ) : category !== "all" ? (
           /* Single category selected — flat grid */
           <>
-            <p className="mt-4 text-sm text-zinc-500">{filtered.length} recipe{filtered.length !== 1 ? "s" : ""}</p>
+            <p className="mt-4 text-sm text-zinc-500">{filtered.length} {filtered.length !== 1 ? t("market.recipes_count") : t("market.recipe_count")}</p>
             <div className="mt-3 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
               {filtered.map((recipe) => (
                 <RecipeCard key={recipe.id} recipe={recipe} showAuthor={false} />

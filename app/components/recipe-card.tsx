@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import { StarRating } from "./star-rating";
 import type { Recipe } from "@/lib/types";
+import { useLanguage } from "@/lib/i18n/language-context";
 
 interface RecipeCardProps {
   recipe: Recipe;
@@ -8,7 +11,9 @@ interface RecipeCardProps {
 }
 
 export function RecipeCard({ recipe, showAuthor = true }: RecipeCardProps) {
+  const { locale, t } = useLanguage();
   const totalTime = (recipe.prep_time ?? 0) + (recipe.cook_time ?? 0);
+  const displayTitle = (locale === "zh" && recipe.title_zh) ? recipe.title_zh : recipe.title;
 
   return (
     <Link
@@ -20,7 +25,7 @@ export function RecipeCard({ recipe, showAuthor = true }: RecipeCardProps) {
         {recipe.hero_image_url ? (
           <img
             src={recipe.hero_image_url}
-            alt={recipe.title}
+            alt={displayTitle}
             className="h-full w-full object-cover transition-transform group-hover:scale-105"
           />
         ) : (
@@ -46,7 +51,7 @@ export function RecipeCard({ recipe, showAuthor = true }: RecipeCardProps) {
       {/* Content */}
       <div className="flex flex-1 flex-col p-4">
         <h3 className="line-clamp-2 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-          {recipe.title}
+          {displayTitle}
         </h3>
 
         {showAuthor && recipe.author_name && (
@@ -65,7 +70,7 @@ export function RecipeCard({ recipe, showAuthor = true }: RecipeCardProps) {
 
         {/* Quick stats */}
         <div className="mt-auto flex items-center gap-3 pt-3 text-xs text-zinc-500 dark:text-zinc-400">
-          {totalTime > 0 && <span>{totalTime} min</span>}
+          {totalTime > 0 && <span>{totalTime} {t("recipe.minutes")}</span>}
           {recipe.calories_per_serving && (
             <span>{Math.round(recipe.calories_per_serving)} cal</span>
           )}

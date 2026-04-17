@@ -18,7 +18,13 @@ const RECIPE_SCHEMA = `{
   "calories_per_serving": number or null,
   "protein_grams": number or null,
   "carbs_grams": number or null,
-  "fat_grams": number or null
+  "fat_grams": number or null,
+
+  "title_zh": "string — Simplified Chinese translation of the title",
+  "description_zh": "string — Simplified Chinese translation of the description",
+  "ingredients_zh": [{"name": "string (Chinese)", "quantity": "string", "unit": "string (Chinese)"}],
+  "steps_zh": ["string — each cooking step in Simplified Chinese"],
+  "important_note_zh": "string or null — Simplified Chinese translation of any important note"
 }`;
 
 const EXTRACTION_RULES = `Rules:
@@ -28,7 +34,10 @@ const EXTRACTION_RULES = `Rules:
 - If nutritional info is missing, estimate calories_per_serving from the ingredients and portions.
 - Infer difficulty from complexity of steps and number of ingredients.
 - Infer cuisine from the dish name and ingredients if not stated.
-- If content is in a non-English language, translate the recipe to English.
+- If content is in a non-English language, translate the recipe to English for the main fields.
+- ALWAYS provide Simplified Chinese translations in the _zh fields (title_zh, description_zh, ingredients_zh, steps_zh, important_note_zh), regardless of the source language. Translate from English or the original language to Simplified Chinese.
+- For ingredients_zh, keep quantity the same but translate name and unit to Chinese. E.g. {"quantity":"2","unit":"杯","name":"面粉"}.
+- For steps_zh, translate each step to natural Simplified Chinese.
 
 IMPORTANT — Copyright compliance:
 - For the "steps" array: REWRITE every cooking instruction in your own words. Do NOT copy the original wording verbatim. Convey the same technique and outcome using different sentence structure and phrasing.
@@ -53,7 +62,7 @@ export async function extractWithHaiku(
     },
     body: JSON.stringify({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 2048,
+      max_tokens: 4096,
       messages: [{ role: "user", content: prompt }],
     }),
     signal: AbortSignal.timeout(30_000),

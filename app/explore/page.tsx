@@ -5,10 +5,11 @@ import { createClient } from "@/lib/supabase/client";
 import { NavBar } from "@/app/components/nav-bar";
 import Link from "next/link";
 import type { MealPlan, Profile } from "@/lib/types";
+import { useLanguage } from "@/lib/i18n/language-context";
 
 const SORT_OPTIONS = [
-  { value: "newest", label: "Newest" },
-  { value: "most_commented", label: "Most Commented" },
+  { value: "newest", labelKey: "explore.newest" as const },
+  { value: "most_commented", labelKey: "explore.most_commented" as const },
 ] as const;
 
 interface MealPlanWithCreator extends MealPlan {
@@ -17,6 +18,7 @@ interface MealPlanWithCreator extends MealPlan {
 
 export default function ExplorePage() {
   const supabase = createClient();
+  const { locale, t } = useLanguage();
   const [plans, setPlans] = useState<MealPlanWithCreator[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -84,10 +86,10 @@ export default function ExplorePage() {
         {/* Header */}
         <div>
           <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">
-            Meal Plans Market
+            {t("explore.title")}
           </h1>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            Discover meal plans shared by the community
+            {t("explore.subtitle")}
           </p>
         </div>
 
@@ -98,7 +100,7 @@ export default function ExplorePage() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search meal plans..."
+              placeholder={t("explore.search")}
               className="w-full rounded-lg border border-zinc-300 bg-white py-2.5 pl-10 pr-4 text-sm text-zinc-900 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
             />
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400">
@@ -119,7 +121,7 @@ export default function ExplorePage() {
                   : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
               }`}
             >
-              {opt.label}
+              {t(opt.labelKey)}
             </button>
           ))}
         </div>
@@ -128,22 +130,22 @@ export default function ExplorePage() {
         {loading ? (
           <div className="mt-12 text-center">
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
-            <p className="mt-3 text-sm text-zinc-500">Loading meal plans...</p>
+            <p className="mt-3 text-sm text-zinc-500">{t("explore.loading")}</p>
           </div>
         ) : plans.length === 0 ? (
           <div className="mt-12 text-center">
             <div className="text-5xl">📅</div>
             <h2 className="mt-4 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-              No meal plans found
+              {t("explore.no_plans")}
             </h2>
             <p className="mt-2 text-sm text-zinc-500">
-              Try adjusting your search terms.
+              {t("explore.no_plans_hint")}
             </p>
           </div>
         ) : (
           <>
             <p className="mt-6 text-sm text-zinc-500">
-              {plans.length} meal plan{plans.length !== 1 ? "s" : ""} found
+              {plans.length} {plans.length !== 1 ? t("explore.plans_count") : t("explore.plan_count")} {t("explore.found")}
             </p>
             <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {plans.map((plan) => (
@@ -173,17 +175,19 @@ export default function ExplorePage() {
 
                   <div className="mt-4 space-y-1 text-xs text-zinc-500 dark:text-zinc-400">
                     <div>
-                      {new Date(plan.start_date).toLocaleDateString()} —{" "}
-                      {new Date(plan.end_date).toLocaleDateString()}
+                      {new Date(plan.start_date).toLocaleDateString(locale === "zh" ? "zh-CN" : "en-US")} —{" "}
+                      {new Date(plan.end_date).toLocaleDateString(locale === "zh" ? "zh-CN" : "en-US")}
                     </div>
                     <div>
-                      {plan.duration_type.replace(/_/g, " ").charAt(0).toUpperCase() +
-                        plan.duration_type.replace(/_/g, " ").slice(1).toLowerCase()}
+                      {(() => {
+                        const key = `duration.${plan.duration_type}` as Parameters<typeof t>[0];
+                        return t(key);
+                      })()}
                     </div>
                   </div>
 
                   <div className="mt-4 flex items-center gap-4 text-xs text-zinc-600 dark:text-zinc-400">
-                    <span>💬 {plan.comment_count} comment{plan.comment_count !== 1 ? "s" : ""}</span>
+                    <span>💬 {plan.comment_count} {plan.comment_count !== 1 ? t("explore.comments") : t("explore.comment")}</span>
                   </div>
                 </Link>
               ))}

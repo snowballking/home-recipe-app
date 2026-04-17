@@ -66,6 +66,13 @@ function NewRecipePageInner() {
   const [carbsGrams, setCarbsGrams] = useState<number | null>(null);
   const [fatGrams, setFatGrams] = useState<number | null>(null);
 
+  // Simplified Chinese translations (populated by AI extraction)
+  const [titleZh, setTitleZh] = useState<string | null>(null);
+  const [descriptionZh, setDescriptionZh] = useState<string | null>(null);
+  const [importantNoteZh, setImportantNoteZh] = useState<string | null>(null);
+  const [ingredientsZh, setIngredientsZh] = useState<Ingredient[] | null>(null);
+  const [stepsZh, setStepsZh] = useState<string[] | null>(null);
+
   // ── Pre-fill from ?url= query parameter (e.g. from public meal plan) ──
   useEffect(() => {
     const prefillUrl = searchParams.get("url");
@@ -207,6 +214,21 @@ function NewRecipePageInner() {
     if (r.fat_grams != null) setFatGrams(r.fat_grams);
 
     if (r.hero_image_url) setHeroImageUrl(r.hero_image_url);
+
+    // Simplified Chinese translations from AI
+    if (r.title_zh) setTitleZh(r.title_zh);
+    if (r.description_zh) setDescriptionZh(r.description_zh);
+    if (r.important_note_zh) setImportantNoteZh(r.important_note_zh);
+    if (r.ingredients_zh?.length) {
+      setIngredientsZh(
+        r.ingredients_zh.map((i: { name?: string; quantity?: string; unit?: string }) => ({
+          name: i.name || "",
+          quantity: i.quantity || "",
+          unit: i.unit || "",
+        }))
+      );
+    }
+    if (r.steps_zh?.length) setStepsZh(r.steps_zh);
   }
 
   // ── URL change handler (auto-detect platform) ──────────────────
@@ -298,6 +320,11 @@ function NewRecipePageInner() {
         protein_grams: proteinGrams,
         carbs_grams: carbsGrams,
         fat_grams: fatGrams,
+        title_zh: titleZh,
+        description_zh: descriptionZh,
+        important_note_zh: importantNoteZh,
+        ingredients_zh: ingredientsZh,
+        steps_zh: stepsZh,
       })
       .select("id")
       .single();

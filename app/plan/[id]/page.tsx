@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { NavBar } from "@/app/components/nav-bar";
 import { MealPlanCommentSection } from "@/app/components/meal-plan-comments";
+import { DishChip } from "./dish-chip";
+import { MealLabel } from "./meal-label";
 import Link from "next/link";
 import type { MealPlan, MealPlanSlot, Recipe, Profile, NutritionSummary } from "@/lib/types";
 
@@ -63,47 +65,6 @@ function generateDates(startDate: string, endDate: string): string[] {
   return dates;
 }
 
-/* ── Dish chip (reusable for both layouts) ────────────────────────────── */
-function DishChip({ slot }: { slot: SlotWithRecipe }) {
-  if (!slot.recipes) return null;
-  const r = slot.recipes;
-  const cal = r.calories_per_serving != null
-    ? Math.round(r.calories_per_serving * (slot.servings || 1))
-    : null;
-
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center gap-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 px-2 py-1.5">
-        {r.hero_image_url ? (
-          <img src={r.hero_image_url} alt="" className="h-9 w-9 sm:h-8 sm:w-8 flex-shrink-0 rounded-md object-cover" />
-        ) : (
-          <div className="h-9 w-9 sm:h-8 sm:w-8 flex-shrink-0 rounded-md bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center text-base">🍽</div>
-        )}
-        <div className="min-w-0 flex-1">
-          <span className="text-indigo-700 dark:text-indigo-400 font-medium text-sm sm:text-xs leading-snug break-words block">
-            {r.title}
-          </span>
-          {cal != null && (
-            <span className="text-xs sm:text-[11px] text-zinc-500 dark:text-zinc-400">{cal} cal</span>
-          )}
-        </div>
-      </div>
-      {r.source_url && (
-        <div className="flex flex-wrap gap-1">
-          <a href={r.source_url} target="_blank" rel="noopener noreferrer"
-            className="inline-block rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 transition-colors">
-            View Original
-          </a>
-          <Link href={`/dashboard/recipes/new?url=${encodeURIComponent(r.source_url)}`}
-            className="inline-block rounded-md bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:text-indigo-400 transition-colors">
-            Import
-          </Link>
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default async function PublicMealPlanPage({
   params,
 }: {
@@ -116,7 +77,7 @@ export default async function PublicMealPlanPage({
   const { plan, creator, slots } = data;
   const dates = generateDates(plan.start_date, plan.end_date);
   const mealTypes = ["breakfast", "lunch", "dinner", "snack"] as const;
-  const mealLabels: Record<string, string> = { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", snack: "Snack" };
+  // Meal labels rendered via client component <MealLabel />
 
   // Aggregate ingredients
   const allIngredients: Record<string, { quantity: string; unit: string }> = {};
@@ -178,7 +139,7 @@ export default async function PublicMealPlanPage({
               <tr className="border-b border-zinc-200 dark:border-zinc-800">
                 <th className="bg-zinc-100 dark:bg-zinc-800 px-4 py-3 text-left text-xs font-semibold text-zinc-900 dark:text-zinc-100">Date</th>
                 {mealTypes.map((mt) => (
-                  <th key={mt} className="bg-zinc-100 dark:bg-zinc-800 px-4 py-3 text-left text-xs font-semibold text-zinc-900 dark:text-zinc-100 capitalize">{mt}</th>
+                  <th key={mt} className="bg-zinc-100 dark:bg-zinc-800 px-4 py-3 text-left text-xs font-semibold text-zinc-900 dark:text-zinc-100"><MealLabel mealType={mt} /></th>
                 ))}
                 <th className="bg-zinc-100 dark:bg-zinc-800 px-4 py-3 text-left text-xs font-semibold text-zinc-900 dark:text-zinc-100">Daily Totals</th>
               </tr>
@@ -248,7 +209,7 @@ export default async function PublicMealPlanPage({
                     return (
                       <div key={mealType} className="px-4 py-3">
                         <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2 block">
-                          {mealLabels[mealType]}
+                          <MealLabel mealType={mealType} />
                         </span>
                         {cellSlots.length === 0 ? (
                           <p className="text-xs text-zinc-300 dark:text-zinc-600 italic">—</p>

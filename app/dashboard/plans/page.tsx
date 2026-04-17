@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import type { MealPlan } from "@/lib/types";
+import { useLanguage } from "@/lib/i18n/language-context";
 
-function formatDateRange(startDate: string, endDate: string): string {
+function formatDateRange(startDate: string, endDate: string, locale: string): string {
+  const dateLocale = locale === "zh" ? "zh-CN" : "en-US";
   const start = new Date(startDate);
   const end = new Date(endDate);
-  const startStr = start.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  const endStr = end.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const startStr = start.toLocaleDateString(dateLocale, { month: "short", day: "numeric" });
+  const endStr = end.toLocaleDateString(dateLocale, { month: "short", day: "numeric", year: "numeric" });
   return `${startStr} – ${endStr}`;
 }
 
@@ -24,6 +26,7 @@ function getStatusBadgeColor(status: string): string {
 export default function MyPlansPage() {
   const router = useRouter();
   const supabase = createClient();
+  const { locale, t } = useLanguage();
   const [plans, setPlans] = useState<MealPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -54,7 +57,7 @@ export default function MyPlansPage() {
 
   async function handleDelete(planId: string, planTitle: string) {
     const confirmed = window.confirm(
-      `Are you sure you want to delete "${planTitle}"? This will also remove its grocery list. This cannot be undone.`
+      `${t("my_plans.delete_confirm")} "${planTitle}"? ${t("my_plans.delete_warning")}`
     );
     if (!confirmed) return;
 
@@ -102,17 +105,17 @@ export default function MyPlansPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-              My Meal Plans
+              {t("my_plans.title")}
             </h1>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              {plans.length} meal {plans.length === 1 ? "plan" : "plans"}
+              {plans.length} {plans.length === 1 ? t("my_plans.plan_count") : t("my_plans.plans_count")}
             </p>
           </div>
           <Link
             href="/dashboard/plans/new"
             className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
           >
-            + Create New Plan
+            {t("my_plans.new_plan")}
           </Link>
         </div>
 
@@ -121,16 +124,16 @@ export default function MyPlansPage() {
           <div className="mt-12 text-center">
             <div className="text-5xl">📅</div>
             <h2 className="mt-4 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-              No meal plans yet
+              {t("my_plans.no_plans")}
             </h2>
             <p className="mt-2 text-sm text-zinc-500">
-              Start planning your meals by creating your first meal plan.
+              {t("my_plans.no_plans_hint")}
             </p>
             <Link
               href="/dashboard/plans/new"
               className="mt-4 inline-block rounded-lg bg-indigo-600 px-6 py-2 text-sm font-medium text-white hover:bg-indigo-700"
             >
-              Create Your First Plan
+              {t("my_plans.create_first")}
             </Link>
           </div>
         ) : (
@@ -147,7 +150,7 @@ export default function MyPlansPage() {
                         {plan.title}
                       </h3>
                       <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                        {formatDateRange(plan.start_date, plan.end_date)}
+                        {formatDateRange(plan.start_date, plan.end_date, locale)}
                       </p>
                       {plan.description && (
                         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300 line-clamp-2">
@@ -162,11 +165,11 @@ export default function MyPlansPage() {
                     <span
                       className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusBadgeColor(plan.status)}`}
                     >
-                      {plan.status === "finalized" ? "✓ Finalized" : "Draft"}
+                      {plan.status === "finalized" ? t("my_plans.finalized") : t("my_plans.draft")}
                     </span>
                     {plan.is_public && (
                       <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                        🌐 Public
+                        {t("my_plans.public")}
                       </span>
                     )}
                   </div>

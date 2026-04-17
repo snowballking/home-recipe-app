@@ -70,6 +70,12 @@ export interface Recipe {
   comment_count: number;
   created_at: string;
   updated_at: string;
+  // Simplified Chinese translations (populated by AI during import)
+  title_zh: string | null;
+  description_zh: string | null;
+  important_note_zh: string | null;
+  ingredients_zh: Ingredient[] | null;
+  steps_zh: string[] | null;
   profiles?: Profile;
   author_name?: string;
 }

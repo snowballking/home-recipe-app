@@ -6,15 +6,18 @@ import { NavBar } from "@/app/components/nav-bar";
 import { RecipeCard } from "@/app/components/recipe-card";
 import { RECIPE_CATEGORIES, CUISINES } from "@/lib/types";
 import type { Recipe, RecipeCategory } from "@/lib/types";
+import { useLanguage } from "@/lib/i18n/language-context";
+import { translateCategory } from "@/lib/i18n/translations";
 
 const SORT_OPTIONS = [
-  { value: "newest", label: "Newest" },
-  { value: "top_rated", label: "Top Rated" },
-  { value: "popular", label: "Most Saved" },
+  { value: "newest", labelKey: "market.newest" as const },
+  { value: "top_rated", labelKey: "market.top_rated" as const },
+  { value: "popular", labelKey: "market.most_saved" as const },
 ] as const;
 
 export default function RecipesMarketPage() {
   const supabase = createClient();
+  const { locale, t } = useLanguage();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -32,7 +35,10 @@ export default function RecipesMarketPage() {
       .select("*, profiles(displayname)")
       .eq("is_public", true);
 
-    if (search.trim()) query = query.ilike("title", `%${search.trim()}%`);
+    if (search.trim()) {
+      const s = search.trim();
+      query = query.or(`title.ilike.%${s}%,title_zh.ilike.%${s}%`);
+    }
     if (cuisineFilter) query = query.eq("cuisine", cuisineFilter);
     if (category !== "all") query = query.eq("category", category);
 
@@ -66,12 +72,12 @@ export default function RecipesMarketPage() {
     const groups: { label: string; icon: string; recipes: Recipe[] }[] = [];
     for (const cat of categoryOptions) {
       const catRecipes = recipes.filter((r) => r.category === cat.value);
-      if (catRecipes.length > 0) groups.push({ label: cat.label, icon: cat.icon, recipes: catRecipes });
+      if (catRecipes.length > 0) groups.push({ label: translateCategory(cat.value, locale), icon: cat.icon, recipes: catRecipes });
     }
     const uncategorized = recipes.filter((r) => !r.category || !categoryOptions.some((c) => c.value === r.category));
-    if (uncategorized.length > 0) groups.push({ label: "Other", icon: "📋", recipes: uncategorized });
+    if (uncategorized.length > 0) groups.push({ label: t("market.other"), icon: "📋", recipes: uncategorized });
     return groups;
-  }, [recipes, category, categoryOptions]);
+  }, [recipes, category, categoryOptions, t, locale]);
 
   return (
     <div className="min-h-full bg-zinc-50 dark:bg-zinc-950">
@@ -80,8 +86,8 @@ export default function RecipesMarketPage() {
       <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
         {/* Header */}
         <div>
-          <h1 className="text-xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-50">Recipes Market</h1>
-          <p className="mt-1 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">Browse public recipes shared by the community</p>
+          <h1 className="text-xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-50">{t("market.title")}</h1>
+          <p className="mt-1 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">{t("market.subtitle")}</p>
         </div>
 
         {/* Search + Cuisine */}
@@ -92,7 +98,7 @@ export default function RecipesMarketPage() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search recipes..."
+              placeholder={t("market.search")}
               className="w-full rounded-lg border border-zinc-300 bg-white py-2 pl-9 pr-4 text-sm text-zinc-900 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
             />
           </div>
@@ -101,7 +107,7 @@ export default function RecipesMarketPage() {
             onChange={(e) => setCuisineFilter(e.target.value)}
             className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
           >
-            <option value="">All Cuisines</option>
+            <option value="">{t("market.all_cuisines")}</option>
             {CUISINES.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
@@ -118,7 +124,7 @@ export default function RecipesMarketPage() {
                 : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
             }`}
           >
-            All
+            {t("market.all")}
           </button>
           {categoryOptions.map((cat) => (
             <button
@@ -130,7 +136,7 @@ export default function RecipesMarketPage() {
                   : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
               }`}
             >
-              {cat.icon} {cat.label}
+              {cat.icon} {translateCategory(cat.value, locale)}
             </button>
           ))}
         </div>
@@ -147,7 +153,7 @@ export default function RecipesMarketPage() {
                   : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
               }`}
             >
-              {opt.label}
+              {t(opt.labelKey)}
             </button>
           ))}
         </div>
@@ -156,18 +162,18 @@ export default function RecipesMarketPage() {
         {loading ? (
           <div className="mt-12 text-center">
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
-            <p className="mt-3 text-sm text-zinc-500">Loading recipes...</p>
+            <p className="mt-3 text-sm text-zinc-500">{t("market.loading")}</p>
           </div>
         ) : recipes.length === 0 ? (
           <div className="mt-12 text-center">
             <div className="text-5xl">🍽</div>
-            <h2 className="mt-4 text-lg font-semibold text-zinc-900 dark:text-zinc-50">No recipes found</h2>
-            <p className="mt-2 text-sm text-zinc-500">Try adjusting your search, category, or cuisine filter.</p>
+            <h2 className="mt-4 text-lg font-semibold text-zinc-900 dark:text-zinc-50">{t("market.no_recipes")}</h2>
+            <p className="mt-2 text-sm text-zinc-500">{t("market.no_recipes_hint")}</p>
           </div>
         ) : category !== "all" ? (
           /* Single category selected — flat grid */
           <>
-            <p className="mt-4 text-sm text-zinc-500">{recipes.length} recipe{recipes.length !== 1 ? "s" : ""}</p>
+            <p className="mt-4 text-sm text-zinc-500">{recipes.length} {recipes.length !== 1 ? t("market.recipes_count") : t("market.recipe_count")}</p>
             <div className="mt-3 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
               {recipes.map((recipe) => (
                 <RecipeCard key={recipe.id} recipe={recipe} showAuthor />

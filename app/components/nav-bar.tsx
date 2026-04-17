@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState } from "react";
+import { useLanguage } from "@/lib/i18n/language-context";
 
 export function NavBar() {
   const pathname = usePathname();
@@ -13,6 +14,7 @@ export function NavBar() {
   const [displayName, setDisplayName] = useState("");
   const [loggingOut, setLoggingOut] = useState(false);
   const supabase = createClient();
+  const { locale, setLocale, t } = useLanguage();
 
   useEffect(() => {
     (async () => {
@@ -42,10 +44,10 @@ export function NavBar() {
   }
 
   const navLinks = [
-    { href: "/market", label: "Recipes\nMarket", shortLabel: "Recipes Market" },
-    ...(user ? [{ href: "/dashboard/recipes", label: "My\nRecipes", shortLabel: "My Recipes" }] : []),
-    { href: "/explore", label: "Meal Plans\nMarket", shortLabel: "Meal Plans Market" },
-    ...(user ? [{ href: "/dashboard/plans", label: "My\nMeal Plans", shortLabel: "My Meal Plans" }] : []),
+    { href: "/market", label: t("nav.recipes_market"), shortLabel: t("nav.recipes_market_short") },
+    ...(user ? [{ href: "/dashboard/recipes", label: t("nav.my_recipes"), shortLabel: t("nav.my_recipes_short") }] : []),
+    { href: "/explore", label: t("nav.meal_plans_market"), shortLabel: t("nav.meal_plans_market_short") },
+    ...(user ? [{ href: "/dashboard/plans", label: t("nav.my_meal_plans"), shortLabel: t("nav.my_meal_plans_short") }] : []),
   ];
 
   function isActive(href: string) {
@@ -73,7 +75,7 @@ export function NavBar() {
                   : "text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
               }`}
             >
-              ⚙ Admin
+              {t("nav.admin")}
             </Link>
           )}
 
@@ -93,20 +95,38 @@ export function NavBar() {
               </Link>
               <button
                 type="button"
+                onClick={() => setLocale(locale === "en" ? "zh" : "en")}
+                className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                title={locale === "en" ? "切换中文" : "Switch to English"}
+              >
+                {locale === "en" ? "中文" : "EN"}
+              </button>
+              <button
+                type="button"
                 onClick={handleLogout}
                 disabled={loggingOut}
                 className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
               >
-                {loggingOut ? "..." : "Log Out"}
+                {loggingOut ? "..." : t("nav.log_out")}
               </button>
             </>
           ) : (
-            <Link
-              href="/login"
-              className="rounded-md bg-indigo-600 px-3 py-1 text-xs sm:text-sm font-medium text-white hover:bg-indigo-700"
-            >
-              Sign In
-            </Link>
+            <>
+              <button
+                type="button"
+                onClick={() => setLocale(locale === "en" ? "zh" : "en")}
+                className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                title={locale === "en" ? "切换中文" : "Switch to English"}
+              >
+                {locale === "en" ? "中文" : "EN"}
+              </button>
+              <Link
+                href="/login"
+                className="rounded-md bg-indigo-600 px-3 py-1 text-xs sm:text-sm font-medium text-white hover:bg-indigo-700"
+              >
+                {t("nav.sign_in")}
+              </Link>
+            </>
           )}
         </div>
       </div>

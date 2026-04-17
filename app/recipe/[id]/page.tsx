@@ -6,7 +6,8 @@ import { CommentSection } from "@/app/components/comment-section";
 import { SaveRecipeButton } from "@/app/components/save-recipe-button";
 import { FollowButton } from "@/app/components/follow-button";
 import { RecipeRating } from "./recipe-rating";
-import type { Recipe, Ingredient } from "@/lib/types";
+import { RecipeTitle, RecipeDescription, RecipeImportantNote, RecipeIngredients, RecipeSteps } from "./recipe-content";
+import type { Recipe } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -42,9 +43,7 @@ export default async function RecipeDetailPage({ params }: PageProps) {
   const isOwner = user?.id === typedRecipe.user_id;
 
   const totalTime = (typedRecipe.prep_time ?? 0) + (typedRecipe.cook_time ?? 0);
-  const ingredients = (typedRecipe.ingredients ?? []) as Ingredient[];
   const altIngredients = (typedRecipe.alternative_ingredients ?? []) as { name: string; description: string }[];
-  const steps = (typedRecipe.steps ?? []) as string[];
 
   return (
     <div className="min-h-full bg-zinc-50 dark:bg-zinc-950">
@@ -58,7 +57,7 @@ export default async function RecipeDetailPage({ params }: PageProps) {
           </Link>
           <span className="mx-2">/</span>
           <span className="text-zinc-900 dark:text-zinc-100">
-            {typedRecipe.title}
+            <RecipeTitle recipe={typedRecipe} />
           </span>
         </nav>
 
@@ -67,7 +66,7 @@ export default async function RecipeDetailPage({ params }: PageProps) {
           <div className="relative mb-6 aspect-video overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-800">
             <img
               src={typedRecipe.hero_image_url}
-              alt={typedRecipe.title}
+              alt={typedRecipe.title ?? ""}
               className="h-full w-full object-cover"
             />
             {!typedRecipe.source_url && (
@@ -82,13 +81,9 @@ export default async function RecipeDetailPage({ params }: PageProps) {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">
-              {typedRecipe.title}
+              <RecipeTitle recipe={typedRecipe} />
             </h1>
-            {typedRecipe.description && (
-              <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-                {typedRecipe.description}
-              </p>
-            )}
+            <RecipeDescription recipe={typedRecipe} />
           </div>
           {isOwner && (
             <Link
@@ -228,53 +223,10 @@ export default async function RecipeDetailPage({ params }: PageProps) {
         )}
 
         {/* Important Note */}
-        {typedRecipe.important_note && (
-          <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30">
-            <div className="flex items-start gap-2">
-              <span className="text-lg leading-none">📝</span>
-              <div className="flex-1">
-                <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-200">
-                  Important Note
-                </h3>
-                <p className="mt-1 whitespace-pre-wrap text-sm text-amber-900/90 dark:text-amber-100">
-                  {typedRecipe.important_note}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
+        <RecipeImportantNote recipe={typedRecipe} />
 
         {/* Ingredients */}
-        {ingredients.length > 0 && (
-          <div className="mt-6">
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-              Ingredients
-            </h2>
-            <div className="mt-3 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-800">
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 w-20">Amount</th>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 w-24">Unit</th>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400">Ingredient</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ingredients.map((ing, i) => (
-                    <tr
-                      key={i}
-                      className="border-b last:border-b-0 border-zinc-100 dark:border-zinc-800 odd:bg-white even:bg-zinc-50 dark:odd:bg-zinc-900 dark:even:bg-zinc-900/50"
-                    >
-                      <td className="px-4 py-2 font-medium text-zinc-900 dark:text-zinc-100">{ing.quantity}</td>
-                      <td className="px-4 py-2 text-zinc-600 dark:text-zinc-400">{ing.unit}</td>
-                      <td className="px-4 py-2 font-medium text-zinc-900 dark:text-zinc-100">{ing.name}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+        <RecipeIngredients recipe={typedRecipe} />
 
         {/* Alternative Ingredients */}
         {altIngredients.length > 0 && (
@@ -309,25 +261,7 @@ export default async function RecipeDetailPage({ params }: PageProps) {
         )}
 
         {/* Steps */}
-        {steps.length > 0 && (
-          <div className="mt-6">
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-              Instructions
-            </h2>
-            <ol className="mt-3 space-y-4">
-              {steps.map((step, i) => (
-                <li key={i} className="flex gap-4">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300">
-                    {i + 1}
-                  </span>
-                  <p className="pt-0.5 text-sm text-zinc-700 dark:text-zinc-300">
-                    {step}
-                  </p>
-                </li>
-              ))}
-            </ol>
-          </div>
-        )}
+        <RecipeSteps recipe={typedRecipe} />
 
         {/* Source Attribution */}
         {typedRecipe.source_url && (

@@ -249,7 +249,7 @@ export default function GroceryListPage() {
         .select(`
           *,
           recipes:recipe_id (
-            id, title, ingredients
+            id, title, title_zh, ingredients, ingredients_zh
           )
         `)
         .eq("meal_plan_id", planId)

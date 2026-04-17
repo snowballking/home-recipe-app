@@ -6,6 +6,14 @@ import { createClient } from "@/lib/supabase/client";
 import type { MealPlan, MealPlanSlot, Recipe, NutritionSummary } from "@/lib/types";
 import { RECIPE_CATEGORIES } from "@/lib/types";
 import Link from "next/link";
+import { useLanguage } from "@/lib/i18n/language-context";
+import { translateCategory } from "@/lib/i18n/translations";
+
+/** Helper: get display title for a recipe based on locale */
+function recipeDisplayTitle(recipe: Recipe | undefined, locale: string): string {
+  if (!recipe) return "";
+  return (locale === "zh" && recipe.title_zh) ? recipe.title_zh : recipe.title;
+}
 
 interface SlotWithRecipe extends MealPlanSlot {
   recipes?: Recipe;
@@ -26,6 +34,7 @@ function RecipePickerModal({
   onClose: () => void;
   mealLabel: string;
 }) {
+  const { locale, t } = useLanguage();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
 
@@ -34,7 +43,7 @@ function RecipePickerModal({
     if (category !== "all") list = list.filter((r) => r.category === category);
     if (search.trim()) {
       const q = search.toLowerCase();
-      list = list.filter((r) => r.title.toLowerCase().includes(q));
+      list = list.filter((r) => r.title.toLowerCase().includes(q) || (r.title_zh && r.title_zh.includes(q)));
     }
     return list;
   }, [recipes, category, search]);
@@ -52,7 +61,7 @@ function RecipePickerModal({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 px-4 py-3">
           <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
-            Add to {mealLabel}
+            {locale === "zh" ? `添加到${mealLabel}` : `Add to ${mealLabel}`}
           </h3>
           <button
             onClick={onClose}
@@ -68,7 +77,7 @@ function RecipePickerModal({
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
             <input
               type="text"
-              placeholder="Search recipes..."
+              placeholder={t("meal_plan.search_recipes")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 pl-9 pr-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -87,7 +96,7 @@ function RecipePickerModal({
                   : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
               }`}
             >
-              All
+              {t("cat.all")}
             </button>
             {categoryOptions.map((cat) => (
               <button
@@ -99,7 +108,7 @@ function RecipePickerModal({
                     : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
                 }`}
               >
-                {cat.icon} {cat.label}
+                {cat.icon} {translateCategory(cat.value, locale)}
               </button>
             ))}
           </div>
@@ -109,7 +118,7 @@ function RecipePickerModal({
         <div className="flex-1 overflow-y-auto px-2 pb-4">
           {filtered.length === 0 ? (
             <div className="py-12 text-center text-sm text-zinc-400">
-              No recipes found
+              {t("meal_plan.no_recipes")}
             </div>
           ) : (
             <div className="space-y-1">
@@ -133,7 +142,7 @@ function RecipePickerModal({
                   )}
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">
-                      {recipe.title}
+                      {recipeDisplayTitle(recipe, locale)}
                     </div>
                     <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
                       {recipe.calories_per_serving != null && (
@@ -141,7 +150,7 @@ function RecipePickerModal({
                       )}
                       {recipe.category && (
                         <span className="rounded-full bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5">
-                          {categoryOptions.find((c) => c.value === recipe.category)?.label ?? recipe.category}
+                          {translateCategory(recipe.category ?? "", locale)}
                         </span>
                       )}
                     </div>
@@ -164,6 +173,7 @@ export default function MealPlanDetailPage() {
   const router = useRouter();
   const planId = params.id as string;
   const supabase = createClient();
+  const { locale, t } = useLanguage();
 
   // State
   const [plan, setPlan] = useState<MealPlan | null>(null);
@@ -183,7 +193,7 @@ export default function MealPlanDetailPage() {
   const slotsSelect = `
     *,
     recipes:recipe_id (
-      id, user_id, title, hero_image_url, calories_per_serving, protein_grams, carbs_grams, fat_grams, category
+      id, user_id, title, title_zh, hero_image_url, calories_per_serving, protein_grams, carbs_grams, fat_grams, category
     )
   `;
 
@@ -299,7 +309,7 @@ export default function MealPlanDetailPage() {
     const shareUrl = `${window.location.origin}/plan/${planId}`;
     try {
       await navigator.clipboard.writeText(shareUrl);
-      setMessage("Link copied! Share it with others to let them view your meal plan.");
+      setMessage(t("meal_plan.link_copied"));
     } catch {
       // Fallback for older browsers
       setMessage(`Share this link: ${shareUrl}`);
@@ -361,10 +371,10 @@ export default function MealPlanDetailPage() {
   const dates = generateDates();
   const mealTypes = ["breakfast", "lunch", "dinner", "snack"] as const;
   const mealLabels: Record<string, string> = {
-    breakfast: "Breakfast",
-    lunch: "Lunch",
-    dinner: "Dinner",
-    snack: "Snack",
+    breakfast: t("meal_plan.breakfast"),
+    lunch: t("meal_plan.lunch"),
+    dinner: t("meal_plan.dinner"),
+    snack: t("meal_plan.snack"),
   };
 
   return (
@@ -433,12 +443,12 @@ export default function MealPlanDetailPage() {
                 ? "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400"
                 : "bg-zinc-200 text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300"
             }`}>
-            {plan.is_public ? "Public" : "Private"}
+            {plan.is_public ? t("recipe.public") : t("recipe.private")}
           </button>
           <button onClick={sharePlan} disabled={saving}
             className="rounded-lg bg-violet-600 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50 transition-colors flex items-center gap-1.5">
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
-            Share
+            {t("meal_plan.share")}
           </button>
         </div>
 
@@ -449,7 +459,7 @@ export default function MealPlanDetailPage() {
               <tr className="border-b border-zinc-200 dark:border-zinc-800">
                 <th className="bg-zinc-100 dark:bg-zinc-800 px-4 py-3 text-left text-xs font-semibold text-zinc-900 dark:text-zinc-100">Date</th>
                 {mealTypes.map((mt) => (
-                  <th key={mt} className="bg-zinc-100 dark:bg-zinc-800 px-4 py-3 text-left text-xs font-semibold text-zinc-900 dark:text-zinc-100 capitalize">{mt}</th>
+                  <th key={mt} className="bg-zinc-100 dark:bg-zinc-800 px-4 py-3 text-left text-xs font-semibold text-zinc-900 dark:text-zinc-100">{mealLabels[mt]}</th>
                 ))}
                 <th className="bg-zinc-100 dark:bg-zinc-800 px-4 py-3 text-left text-xs font-semibold text-zinc-900 dark:text-zinc-100">Daily Totals</th>
               </tr>
@@ -485,7 +495,7 @@ export default function MealPlanDetailPage() {
                                     <div className="h-8 w-8 flex-shrink-0 rounded-md bg-indigo-100 dark:bg-indigo-800/40 flex items-center justify-center text-sm">🍽</div>
                                   )}
                                   <span className="flex-1 text-indigo-700 dark:text-indigo-400 font-medium text-xs leading-snug break-words min-w-0">
-                                    {slot.recipes.title}
+                                    {recipeDisplayTitle(slot.recipes, locale)}
                                   </span>
                                   <button onClick={() => removeRecipeFromSlot(slot.id)} disabled={saving}
                                     className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity rounded-full p-0.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 dark:hover:text-red-400"
@@ -495,7 +505,7 @@ export default function MealPlanDetailPage() {
 
                                   {hoveredSlot === slot.id && (
                                     <div className="absolute z-50 left-0 top-full mt-1 w-44 rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shadow-lg p-2.5">
-                                      <p className="font-medium text-zinc-900 dark:text-zinc-100 text-xs mb-1.5">{slot.recipes.title}</p>
+                                      <p className="font-medium text-zinc-900 dark:text-zinc-100 text-xs mb-1.5">{recipeDisplayTitle(slot.recipes, locale)}</p>
                                       <div className="space-y-0.5 text-[11px] text-zinc-600 dark:text-zinc-400">
                                         {slot.recipes.calories_per_serving != null && <div>Cal: <span className="font-medium text-zinc-900 dark:text-zinc-100">{Math.round(slot.recipes.calories_per_serving * (slot.servings || 1))}</span></div>}
                                         {slot.recipes.protein_grams != null && <div>Protein: <span className="font-medium">{(slot.recipes.protein_grams * (slot.servings || 1)).toFixed(1)}g</span></div>}
@@ -516,7 +526,7 @@ export default function MealPlanDetailPage() {
                                   : "border-zinc-200 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 hover:border-indigo-400 hover:text-indigo-500"
                               }`}
                             >
-                              {cellSlots.length === 0 ? "+ Add dish" : "+"}
+                              {cellSlots.length === 0 ? t("meal_plan.add_dish") : "+"}
                             </button>
                           </div>
                         </td>
@@ -570,7 +580,7 @@ export default function MealPlanDetailPage() {
                             onClick={() => setActiveCell({ date, mealType })}
                             className="rounded-full bg-indigo-50 dark:bg-indigo-900/30 px-2.5 py-0.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
                           >
-                            + Add
+                            {t("meal_plan.add_dish")}
                           </button>
                         </div>
 
@@ -589,7 +599,7 @@ export default function MealPlanDetailPage() {
                                   )}
                                   <div className="min-w-0 flex-1">
                                     <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 leading-snug">
-                                      {slot.recipes.title}
+                                      {recipeDisplayTitle(slot.recipes, locale)}
                                     </p>
                                     {slot.recipes.calories_per_serving != null && (
                                       <p className="text-xs text-zinc-500 dark:text-zinc-400">
@@ -639,7 +649,7 @@ export default function MealPlanDetailPage() {
           saving={saving}
           onSelect={addRecipeToSlot}
           onClose={() => setActiveCell(null)}
-          mealLabel={`${mealLabels[activeCell.mealType]} — ${new Date(activeCell.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}`}
+          mealLabel={`${mealLabels[activeCell.mealType]} — ${new Date(activeCell.date).toLocaleDateString(locale === "zh" ? "zh-CN" : "en-US", { weekday: "short", month: "short", day: "numeric" })}`}
         />
       )}
     </div>
