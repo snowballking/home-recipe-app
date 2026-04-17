@@ -13,7 +13,7 @@ const RECIPE_SCHEMA = `{
   "difficulty": "beginner" | "intermediate" | "advanced",
   "cuisine": "string — one of: Chinese, Malay, Indian, Western, Japanese, Korean, Thai, Vietnamese, Italian, Mexican, Middle Eastern, French, American, Mediterranean, Other, or empty",
   "meal_type": "breakfast" | "lunch" | "dinner" | "snack" | "dessert" | "drinks" | "",
-  "category": "string — one of: breakfast, appetizers, soups, salads, meat, seafood, vegetables, noodles_rice, snacks, desserts, drinks — pick the BEST fit for the dish type",
+  "category": "string — one of: breakfast, appetizers, soups, salads, meat_seafood, vegetables, noodles_rice, snacks, desserts, drinks — pick the BEST fit for the dish type",
   "dietary_tags": ["from: Vegetarian, Vegan, Halal, Gluten-Free, Keto, Low-Carb, Dairy-Free, Nut-Free, Paleo, Whole30"],
   "calories_per_serving": number or null,
   "protein_grams": number or null,
