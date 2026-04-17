@@ -76,12 +76,12 @@ function RecipePickerModal({
           </div>
         </div>
 
-        {/* Category pills — horizontally scrollable */}
+        {/* Category pills — wrapped */}
         <div className="px-4 pb-2">
-          <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+          <div className="flex flex-wrap gap-1.5">
             <button
               onClick={() => setCategory("all")}
-              className={`flex-shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                 category === "all"
                   ? "bg-indigo-600 text-white"
                   : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
@@ -93,7 +93,7 @@ function RecipePickerModal({
               <button
                 key={cat.value}
                 onClick={() => setCategory(cat.value)}
-                className={`flex-shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors whitespace-nowrap ${
+                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                   category === cat.value
                     ? "bg-indigo-600 text-white"
                     : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
