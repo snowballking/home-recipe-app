@@ -72,7 +72,6 @@ function RecipePickerModal({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 pl-9 pr-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              autoFocus
             />
           </div>
         </div>
@@ -284,6 +283,30 @@ export default function MealPlanDetailPage() {
     setSaving(false);
   }
 
+  // Share plan: make public + copy link
+  async function sharePlan() {
+    if (!plan) return;
+    setSaving(true); setMessage("");
+
+    // Ensure plan is public first
+    if (!plan.is_public) {
+      const { error } = await supabase.from("meal_plans").update({ is_public: true }).eq("id", planId);
+      if (error) { setMessage("Error sharing plan: " + error.message); setSaving(false); return; }
+      setPlan({ ...plan, is_public: true });
+    }
+
+    // Copy shareable link
+    const shareUrl = `${window.location.origin}/plan/${planId}`;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setMessage("Link copied! Share it with others to let them view your meal plan.");
+    } catch {
+      // Fallback for older browsers
+      setMessage(`Share this link: ${shareUrl}`);
+    }
+    setSaving(false);
+  }
+
   // Generate date range
   function generateDates(): string[] {
     if (!plan) return [];
@@ -410,7 +433,12 @@ export default function MealPlanDetailPage() {
                 ? "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400"
                 : "bg-zinc-200 text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300"
             }`}>
-            {plan.is_public ? "Shared" : "Private"}
+            {plan.is_public ? "Public" : "Private"}
+          </button>
+          <button onClick={sharePlan} disabled={saving}
+            className="rounded-lg bg-violet-600 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50 transition-colors flex items-center gap-1.5">
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+            Share
           </button>
         </div>
 
