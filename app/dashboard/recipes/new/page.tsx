@@ -205,7 +205,10 @@ function NewRecipePageInner() {
     if (r.cook_time != null) setCookTime(String(r.cook_time));
     if (r.difficulty) setDifficulty(r.difficulty);
     if (r.cuisine) setCuisine(r.cuisine);
-    if (r.meal_type) setMealType(r.meal_type);
+    if (r.meal_type) {
+      const validMealTypes = MEAL_TYPES.map((m) => m.value) as readonly string[];
+      if (validMealTypes.includes(r.meal_type)) setMealType(r.meal_type);
+    }
     if (r.dietary_tags?.length) setDietaryTags(r.dietary_tags);
     if (r.category) setRecipeCategory(r.category);
     if (r.calories_per_serving != null) setCaloriesPerServing(r.calories_per_serving);
