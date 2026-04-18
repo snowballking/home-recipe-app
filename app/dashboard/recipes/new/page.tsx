@@ -203,7 +203,10 @@ function NewRecipePageInner() {
     if (r.servings) setServings(r.servings);
     if (r.prep_time != null) setPrepTime(String(r.prep_time));
     if (r.cook_time != null) setCookTime(String(r.cook_time));
-    if (r.difficulty) setDifficulty(r.difficulty);
+    if (r.difficulty) {
+      const validDifficulties = DIFFICULTIES.map((d) => d.value) as readonly string[];
+      if (validDifficulties.includes(r.difficulty)) setDifficulty(r.difficulty);
+    }
     if (r.cuisine) setCuisine(r.cuisine);
     if (r.meal_type) {
       const validMealTypes = MEAL_TYPES.map((m) => m.value) as readonly string[];
@@ -298,6 +301,12 @@ function NewRecipePageInner() {
     const validAltIngredients = altIngredients.filter((a) => a.name.trim() || a.description.trim());
     const validSteps = steps.filter((s) => s.trim());
 
+    // Validate constrained fields before insert
+    const validMealTypeValues = MEAL_TYPES.map((m) => m.value) as readonly string[];
+    const safeMealType = mealType && validMealTypeValues.includes(mealType) ? mealType : null;
+    const validDifficultyValues = DIFFICULTIES.map((d) => d.value) as readonly string[];
+    const safeDifficulty = validDifficultyValues.includes(difficulty) ? difficulty : "beginner";
+
     const { data, error: insertError } = await supabase
       .from("recipes")
       .insert({
@@ -311,9 +320,9 @@ function NewRecipePageInner() {
         servings,
         prep_time: prepTime ? parseInt(prepTime) : null,
         cook_time: cookTime ? parseInt(cookTime) : null,
-        difficulty,
+        difficulty: safeDifficulty,
         cuisine: cuisine || null,
-        meal_type: mealType || null,
+        meal_type: safeMealType,
         category: recipeCategory || null,
         dietary_tags: dietaryTags,
         source_url: sourceUrl.trim() || null,
