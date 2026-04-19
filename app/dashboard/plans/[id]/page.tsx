@@ -27,26 +27,31 @@ function RecipePickerModal({
   onSelect,
   onClose,
   mealLabel,
+  currentUserId,
 }: {
   recipes: Recipe[];
   saving: boolean;
   onSelect: (id: string) => void;
   onClose: () => void;
   mealLabel: string;
+  currentUserId: string | null;
 }) {
   const { locale, t } = useLanguage();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "mine" | "community">("all");
 
   const filtered = useMemo(() => {
     let list = recipes;
+    if (sourceFilter === "mine") list = list.filter((r) => r.user_id === currentUserId);
+    else if (sourceFilter === "community") list = list.filter((r) => r.user_id !== currentUserId);
     if (category !== "all") list = list.filter((r) => r.category === category);
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter((r) => r.title.toLowerCase().includes(q) || (r.title_zh && r.title_zh.includes(q)));
     }
     return list;
-  }, [recipes, category, search]);
+  }, [recipes, category, search, sourceFilter, currentUserId]);
 
   // Group by category for display
   const categoryOptions = RECIPE_CATEGORIES.filter((c) => c.value !== "all");
@@ -112,6 +117,28 @@ function RecipePickerModal({
               </button>
             ))}
           </div>
+
+          {/* Source filter: All / My Recipes / Community */}
+          <div className="mt-2 flex gap-1">
+            {(["all", "mine", "community"] as const).map((val) => {
+              const label = val === "all" ? (locale === "zh" ? "全部" : "All")
+                : val === "mine" ? (locale === "zh" ? "我的食谱" : "My Recipes")
+                : (locale === "zh" ? "社区食谱" : "Community");
+              return (
+                <button
+                  key={val}
+                  onClick={() => setSourceFilter(val)}
+                  className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                    sourceFilter === val
+                      ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                      : "text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Recipe list */}
@@ -145,6 +172,11 @@ function RecipePickerModal({
                       {recipeDisplayTitle(recipe, locale)}
                     </div>
                     <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+                      {recipe.user_id !== currentUserId && (
+                        <span className="rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 text-[10px] font-medium">
+                          {(recipe as any).author_name ?? "Community"}
+                        </span>
+                      )}
                       {recipe.calories_per_serving != null && (
                         <span>{Math.round(recipe.calories_per_serving)} cal</span>
                       )}
@@ -179,6 +211,7 @@ export default function MealPlanDetailPage() {
   const [plan, setPlan] = useState<MealPlan | null>(null);
   const [slots, setSlots] = useState<SlotWithRecipe[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -215,10 +248,23 @@ export default function MealPlanDetailPage() {
         .order("meal_type", { ascending: true });
       setSlots((slotsData ?? []) as SlotWithRecipe[]);
 
+      // Load user's own recipes + all public recipes
       const { data: recipesData } = await supabase
-        .from("recipes").select("*").eq("user_id", user.id)
+        .from("recipes").select("*, profiles(displayname)")
+        .or(`user_id.eq.${user.id},is_public.eq.true`)
         .order("title", { ascending: true });
-      setRecipes((recipesData ?? []) as Recipe[]);
+      // Deduplicate (user's own public recipes appear in both conditions)
+      const seen = new Set<string>();
+      const deduped = (recipesData ?? []).filter((r: any) => {
+        if (seen.has(r.id)) return false;
+        seen.add(r.id);
+        return true;
+      });
+      setRecipes(deduped.map((r: any) => ({
+        ...r,
+        author_name: r.profiles?.displayname ?? "Anonymous",
+      })) as Recipe[]);
+      setUserId(user.id);
       setLoading(false);
     }
     loadData();
@@ -650,6 +696,7 @@ export default function MealPlanDetailPage() {
           onSelect={addRecipeToSlot}
           onClose={() => setActiveCell(null)}
           mealLabel={`${mealLabels[activeCell.mealType]} — ${new Date(activeCell.date).toLocaleDateString(locale === "zh" ? "zh-CN" : "en-US", { weekday: "short", month: "short", day: "numeric" })}`}
+          currentUserId={userId}
         />
       )}
     </div>
