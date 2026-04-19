@@ -30,14 +30,28 @@ const RECIPE_SCHEMA = `{
 const EXTRACTION_RULES = `Rules:
 - Return ONLY the JSON object, no markdown, no explanation, no wrapping.
 - If a value cannot be determined, use null or empty string/array.
-- For ingredients, separate quantity, unit, and name. E.g. "2 cups flour" → {"quantity":"2","unit":"cups","name":"flour"}.
+- For ingredients, separate quantity, unit, and name. E.g. "200 g flour" → {"quantity":"200","unit":"g","name":"flour"}.
 - If nutritional info is missing, estimate calories_per_serving from the ingredients and portions.
 - Infer difficulty from complexity of steps and number of ingredients.
 - Infer cuisine from the dish name and ingredients if not stated.
 - If content is in a non-English language, translate the recipe to English for the main fields.
 - ALWAYS provide Simplified Chinese translations in the _zh fields (title_zh, description_zh, ingredients_zh, steps_zh, important_note_zh), regardless of the source language. Translate from English or the original language to Simplified Chinese.
-- For ingredients_zh, keep quantity the same but translate name and unit to Chinese. E.g. {"quantity":"2","unit":"杯","name":"面粉"}.
+- For ingredients_zh, keep quantity the same but translate name and unit to Chinese. E.g. {"quantity":"200","unit":"克","name":"面粉"}.
 - For steps_zh, translate each step to natural Simplified Chinese.
+
+IMPORTANT — Measurement units (MUST follow):
+- ALWAYS use metric / UK measurement units. Convert any American / imperial units:
+  - oz (ounces) → convert to g (multiply by 28.35, round to nearest whole number)
+  - lb / lbs / pounds → convert to kg (or g if under 1 kg)
+  - cups → convert to ml (1 cup = 240 ml) or g for dry ingredients
+  - fl oz → convert to ml (multiply by 29.57, round)
+  - fahrenheit → convert to celsius
+  - quart → convert to litres or ml
+  - pint → convert to ml (1 US pint = 473 ml)
+  - stick (butter) → convert to g (1 stick = 113 g)
+- Use the FULL word for these abbreviations: "tbsp" → "tablespoon", "tsp" → "teaspoon"
+- Use "g" (not "grams") for grams
+- Keep these units as-is: g, kg, ml, litres, tablespoon, teaspoon, pieces, cloves, slices, bunch, pinch, to taste
 
 IMPORTANT — Copyright compliance:
 - For the "steps" array: REWRITE every cooking instruction in your own words. Do NOT copy the original wording verbatim. Convey the same technique and outcome using different sentence structure and phrasing.
@@ -156,4 +170,71 @@ function parseJsonResponse(raw: string): Record<string, unknown> {
     .replace(/```\s*$/, "")
     .trim();
   return JSON.parse(cleaned);
+}
+
+// ── Unit normalisation (imperial → metric / UK) ─────────────────
+// Applied as a safety net after AI extraction, in case the AI
+// returns abbreviated or imperial units despite the prompt rules.
+
+interface IngredientLike {
+  name: string;
+  quantity: string;
+  unit: string;
+}
+
+const UNIT_CONVERSIONS: Record<string, (qty: number) => { quantity: number; unit: string }> = {
+  oz:      (q) => ({ quantity: Math.round(q * 28.35), unit: "g" }),
+  ounce:   (q) => ({ quantity: Math.round(q * 28.35), unit: "g" }),
+  ounces:  (q) => ({ quantity: Math.round(q * 28.35), unit: "g" }),
+  lb:      (q) => q * 453.6 >= 1000 ? { quantity: Math.round(q * 0.4536 * 100) / 100, unit: "kg" } : { quantity: Math.round(q * 453.6), unit: "g" },
+  lbs:     (q) => q * 453.6 >= 1000 ? { quantity: Math.round(q * 0.4536 * 100) / 100, unit: "kg" } : { quantity: Math.round(q * 453.6), unit: "g" },
+  pound:   (q) => q * 453.6 >= 1000 ? { quantity: Math.round(q * 0.4536 * 100) / 100, unit: "kg" } : { quantity: Math.round(q * 453.6), unit: "g" },
+  pounds:  (q) => q * 453.6 >= 1000 ? { quantity: Math.round(q * 0.4536 * 100) / 100, unit: "kg" } : { quantity: Math.round(q * 453.6), unit: "g" },
+  cup:     (q) => ({ quantity: Math.round(q * 240), unit: "ml" }),
+  cups:    (q) => ({ quantity: Math.round(q * 240), unit: "ml" }),
+  "fl oz": (q) => ({ quantity: Math.round(q * 29.57), unit: "ml" }),
+  quart:   (q) => ({ quantity: Math.round(q * 946), unit: "ml" }),
+  quarts:  (q) => ({ quantity: Math.round(q * 946), unit: "ml" }),
+  pint:    (q) => ({ quantity: Math.round(q * 473), unit: "ml" }),
+  pints:   (q) => ({ quantity: Math.round(q * 473), unit: "ml" }),
+  stick:   (q) => ({ quantity: Math.round(q * 113), unit: "g" }),
+  sticks:  (q) => ({ quantity: Math.round(q * 113), unit: "g" }),
+};
+
+const UNIT_RENAMES: Record<string, string> = {
+  tbsp: "tablespoon",
+  tbs: "tablespoon",
+  tablespoons: "tablespoon",
+  tsp: "teaspoon",
+  teaspoons: "teaspoon",
+  grams: "g",
+  gram: "g",
+  kg: "kg",
+  ml: "ml",
+  l: "litres",
+  liter: "litres",
+  liters: "litres",
+  litre: "litres",
+};
+
+export function normaliseIngredientUnits(ingredients: IngredientLike[]): IngredientLike[] {
+  return ingredients.map((ing) => {
+    const unitLower = (ing.unit ?? "").trim().toLowerCase();
+    const qty = parseFloat(ing.quantity);
+
+    // Check for imperial → metric conversion
+    const converter = UNIT_CONVERSIONS[unitLower];
+    if (converter && !isNaN(qty)) {
+      const converted = converter(qty);
+      return { ...ing, quantity: String(converted.quantity), unit: converted.unit };
+    }
+
+    // Check for abbreviation → full name rename
+    const renamed = UNIT_RENAMES[unitLower];
+    if (renamed) {
+      return { ...ing, unit: renamed };
+    }
+
+    return ing;
+  });
 }

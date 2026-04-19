@@ -222,6 +222,10 @@ export default function MealPlanDetailPage() {
     mealType: string;
   } | null>(null);
   const [hoveredSlot, setHoveredSlot] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showShareMenu, setShowShareMenu] = useState(false);
 
   const slotsSelect = `
     *,
@@ -339,27 +343,121 @@ export default function MealPlanDetailPage() {
     setSaving(false);
   }
 
-  // Share plan: make public + copy link
-  async function sharePlan() {
+  // Update plan title
+  async function saveTitle() {
+    if (!plan || !titleDraft.trim()) { setEditingTitle(false); return; }
+    setSaving(true); setMessage("");
+    const { error } = await supabase.from("meal_plans").update({ title: titleDraft.trim() }).eq("id", planId);
+    if (error) { setMessage("Error updating title: " + error.message); }
+    else { setPlan({ ...plan, title: titleDraft.trim() }); }
+    setEditingTitle(false);
+    setSaving(false);
+  }
+
+  // Delete plan
+  async function deletePlan() {
     if (!plan) return;
     setSaving(true); setMessage("");
+    const { error } = await supabase.from("meal_plans").delete().eq("id", planId);
+    if (error) {
+      setMessage("Error deleting plan: " + error.message);
+      setSaving(false);
+    } else {
+      router.push("/dashboard/plans");
+    }
+  }
 
-    // Ensure plan is public first
+  // Ensure plan is public before any share action
+  async function ensurePublic(): Promise<string | null> {
+    if (!plan) return null;
     if (!plan.is_public) {
       const { error } = await supabase.from("meal_plans").update({ is_public: true }).eq("id", planId);
-      if (error) { setMessage("Error sharing plan: " + error.message); setSaving(false); return; }
+      if (error) { setMessage("Error sharing plan: " + error.message); return null; }
       setPlan({ ...plan, is_public: true });
     }
+    return `${window.location.origin}/plan/${planId}`;
+  }
 
-    // Copy shareable link
-    const shareUrl = `${window.location.origin}/plan/${planId}`;
+  // Copy link to clipboard
+  async function copyLink() {
+    setSaving(true); setMessage("");
+    const shareUrl = await ensurePublic();
+    if (!shareUrl) { setSaving(false); return; }
     try {
       await navigator.clipboard.writeText(shareUrl);
       setMessage(t("meal_plan.link_copied"));
     } catch {
-      // Fallback for older browsers
       setMessage(`Share this link: ${shareUrl}`);
     }
+    setShowShareMenu(false);
+    setSaving(false);
+  }
+
+  // Share via WhatsApp
+  async function shareWhatsApp() {
+    setSaving(true); setMessage("");
+    const shareUrl = await ensurePublic();
+    if (!shareUrl || !plan) { setSaving(false); return; }
+    const text = locale === "zh"
+      ? `看看这个膳食计划: ${plan.title} ${shareUrl}`
+      : `Check out this meal plan: ${plan.title} ${shareUrl}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+    setShowShareMenu(false);
+    setSaving(false);
+  }
+
+  // Share via WeChat (open share page with QR code approach)
+  async function shareWeChat() {
+    setSaving(true); setMessage("");
+    const shareUrl = await ensurePublic();
+    if (!shareUrl) { setSaving(false); return; }
+    // WeChat doesn't have a direct web share URL, so copy and prompt user
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setMessage(locale === "zh"
+        ? "链接已复制！请打开微信粘贴分享给好友。"
+        : "Link copied! Open WeChat and paste to share with friends.");
+    } catch {
+      setMessage(locale === "zh"
+        ? `请复制此链接分享到微信: ${shareUrl}`
+        : `Copy this link to share on WeChat: ${shareUrl}`);
+    }
+    setShowShareMenu(false);
+    setSaving(false);
+  }
+
+  // Share via Email
+  async function shareEmail() {
+    setSaving(true); setMessage("");
+    const shareUrl = await ensurePublic();
+    if (!shareUrl || !plan) { setSaving(false); return; }
+    const subject = locale === "zh" ? `膳食计划: ${plan.title}` : `Meal Plan: ${plan.title}`;
+    const body = locale === "zh"
+      ? `看看这个膳食计划: ${plan.title}\n\n${shareUrl}`
+      : `Check out this meal plan: ${plan.title}\n\n${shareUrl}`;
+    window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+    setShowShareMenu(false);
+    setSaving(false);
+  }
+
+  // Share via AirDrop / Notes / More — uses native share sheet
+  async function shareNative() {
+    setSaving(true); setMessage("");
+    const shareUrl = await ensurePublic();
+    if (!shareUrl || !plan) { setSaving(false); return; }
+    try {
+      await navigator.share({
+        title: plan.title,
+        text: locale === "zh" ? `看看这个膳食计划: ${plan.title}` : `Check out this meal plan: ${plan.title}`,
+        url: shareUrl,
+      });
+      setMessage(locale === "zh" ? "已分享!" : "Shared!");
+    } catch (err: any) {
+      if (err?.name !== "AbortError") {
+        setMessage(`Share this link: ${shareUrl}`);
+      }
+    }
+    setShowShareMenu(false);
     setSaving(false);
   }
 
@@ -429,10 +527,34 @@ export default function MealPlanDetailPage() {
         {/* Header */}
         <div className="mb-6 sm:mb-8">
           <div className="flex items-start justify-between gap-3 mb-3">
-            <div className="min-w-0">
-              <h1 className="text-xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-50 truncate">
-                {plan.title}
-              </h1>
+            <div className="min-w-0 flex-1">
+              {editingTitle ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    autoFocus
+                    type="text"
+                    value={titleDraft}
+                    onChange={(e) => setTitleDraft(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") saveTitle(); if (e.key === "Escape") setEditingTitle(false); }}
+                    className="w-full text-xl sm:text-3xl font-bold bg-transparent border-b-2 border-indigo-500 text-zinc-900 dark:text-zinc-50 outline-none py-0.5"
+                  />
+                  <button onClick={saveTitle} className="flex-shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 transition-colors">
+                    {locale === "zh" ? "保存" : "Save"}
+                  </button>
+                  <button onClick={() => setEditingTitle(false)} className="flex-shrink-0 rounded-lg bg-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300 transition-colors">
+                    {locale === "zh" ? "取消" : "Cancel"}
+                  </button>
+                </div>
+              ) : (
+                <h1
+                  onClick={() => { setTitleDraft(plan.title); setEditingTitle(true); }}
+                  className="text-xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-50 truncate cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors group"
+                  title={locale === "zh" ? "点击编辑标题" : "Click to edit title"}
+                >
+                  {plan.title}
+                  <svg className="inline-block ml-2 h-4 w-4 text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                </h1>
+              )}
               <p className="mt-1 text-xs sm:text-sm text-zinc-600 dark:text-zinc-400">
                 {new Date(plan.start_date).toLocaleDateString()} — {new Date(plan.end_date).toLocaleDateString()}
               </p>
@@ -491,12 +613,121 @@ export default function MealPlanDetailPage() {
             }`}>
             {plan.is_public ? t("recipe.public") : t("recipe.private")}
           </button>
-          <button onClick={sharePlan} disabled={saving}
-            className="rounded-lg bg-violet-600 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50 transition-colors flex items-center gap-1.5">
-            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
-            {t("meal_plan.share")}
+          <div className="relative">
+            <button onClick={() => setShowShareMenu(!showShareMenu)} disabled={saving}
+              className="rounded-lg bg-violet-600 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50 transition-colors flex items-center gap-1.5">
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+              {t("meal_plan.share")}
+              <svg className={`h-3 w-3 transition-transform ${showShareMenu ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+            </button>
+
+            {/* Share Dropdown Menu */}
+            {showShareMenu && (
+              <>
+                <div className="fixed inset-0 z-[90]" onClick={() => setShowShareMenu(false)} />
+                <div className="absolute left-0 top-full mt-2 z-[95] w-56 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-xl overflow-hidden">
+                  {/* Copy Link */}
+                  <button onClick={copyLink}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                    <svg className="h-5 w-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                    {locale === "zh" ? "复制链接" : "Copy Link"}
+                  </button>
+
+                  <div className="border-t border-zinc-100 dark:border-zinc-800" />
+
+                  {/* WhatsApp */}
+                  <button onClick={shareWhatsApp}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                    <svg className="h-5 w-5 text-green-500" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                    WhatsApp
+                  </button>
+
+                  {/* WeChat */}
+                  <button onClick={shareWeChat}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                    <svg className="h-5 w-5 text-green-600" viewBox="0 0 24 24" fill="currentColor"><path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 01.213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 00.167-.054l1.903-1.114a.864.864 0 01.717-.098 10.16 10.16 0 002.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-4.972 1.932-6.446 1.703-1.415 3.882-1.98 5.853-1.838-.576-3.583-4.196-6.348-8.596-6.348zM5.785 5.991c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 01-1.162 1.178A1.17 1.17 0 014.623 7.17c0-.651.52-1.18 1.162-1.18zm5.813 0c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 01-1.162 1.178 1.17 1.17 0 01-1.162-1.178c0-.651.52-1.18 1.162-1.18zm5.34 2.867c-1.797-.052-3.746.512-5.28 1.786-1.72 1.428-2.687 3.72-1.78 6.22.942 2.453 3.666 4.229 6.884 4.229.826 0 1.622-.12 2.361-.336a.722.722 0 01.598.082l1.584.926a.272.272 0 00.14.045c.134 0 .24-.11.24-.245 0-.06-.024-.12-.04-.178l-.325-1.233a.49.49 0 01.177-.554C23.016 18.514 24 16.807 24 14.896c0-3.344-3.067-5.99-7.062-6.038zm-2.54 2.776c.535 0 .969.44.969.982a.976.976 0 01-.969.983.976.976 0 01-.969-.983c0-.542.434-.982.97-.982zm4.844 0c.535 0 .969.44.969.982a.976.976 0 01-.969.983.976.976 0 01-.969-.983c0-.542.434-.982.97-.982z"/></svg>
+                    {locale === "zh" ? "微信" : "WeChat"}
+                  </button>
+
+                  <div className="border-t border-zinc-100 dark:border-zinc-800" />
+
+                  {/* AirDrop — triggers native share sheet */}
+                  {typeof navigator !== "undefined" && !!navigator.share && (
+                    <button onClick={shareNative}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                      <svg className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0" /></svg>
+                      AirDrop
+                    </button>
+                  )}
+
+                  {/* Notes — triggers native share sheet */}
+                  {typeof navigator !== "undefined" && !!navigator.share && (
+                    <button onClick={shareNative}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                      <svg className="h-5 w-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                      {locale === "zh" ? "备忘录" : "Notes"}
+                    </button>
+                  )}
+
+                  {/* Email */}
+                  <button onClick={shareEmail}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                    <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                    {locale === "zh" ? "邮件" : "Email"}
+                  </button>
+
+                  <div className="border-t border-zinc-100 dark:border-zinc-800" />
+
+                  {/* More options — native share sheet */}
+                  {typeof navigator !== "undefined" && !!navigator.share && (
+                    <button onClick={shareNative}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                      <svg className="h-5 w-5 text-violet-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" /></svg>
+                      {locale === "zh" ? "更多选项…" : "More options…"}
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+          <button onClick={() => setShowDeleteConfirm(true)} disabled={saving}
+            className="rounded-lg bg-red-600 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center gap-1.5">
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+            {locale === "zh" ? "删除" : "Delete"}
           </button>
         </div>
+
+        {/* Delete Confirmation Dialog */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowDeleteConfirm(false)} />
+            <div className="relative z-10 w-full max-w-sm mx-4 rounded-2xl bg-white dark:bg-zinc-900 shadow-2xl p-6">
+              <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+                {locale === "zh" ? "确认删除" : "Delete Meal Plan"}
+              </h3>
+              <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+                {locale === "zh"
+                  ? `确定要删除「${plan.title}」吗？此操作不可撤销。`
+                  : `Are you sure you want to delete "${plan.title}"? This action cannot be undone.`}
+              </p>
+              <div className="mt-5 flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 transition-colors"
+                >
+                  {locale === "zh" ? "取消" : "Cancel"}
+                </button>
+                <button
+                  onClick={deletePlan}
+                  disabled={saving}
+                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+                >
+                  {saving ? (locale === "zh" ? "删除中…" : "Deleting…") : (locale === "zh" ? "确认删除" : "Delete")}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ────────── DESKTOP: Table Grid (hidden on mobile) ────────── */}
         <div className="hidden md:block overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">

@@ -40,6 +40,7 @@ function NewRecipePageInner() {
   const [detectedPlatform, setDetectedPlatform] = useState<DetectedPlatform>(null);
   const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [estimatingNutrition, setEstimatingNutrition] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
@@ -701,78 +702,71 @@ function NewRecipePageInner() {
             </div>
           </div>
 
-          {/* Nutrition (populated by AI import, editable) */}
-          {caloriesPerServing != null && (
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-800 dark:bg-emerald-950/30">
-              <label
-                className={`${labelClass} text-emerald-700 dark:text-emerald-300`}
-              >
+          {/* Nutrition (populated by AI import or AI estimate, editable) */}
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-800 dark:bg-emerald-950/30">
+            <div className="flex items-center justify-between mb-2">
+              <label className={`${labelClass} text-emerald-700 dark:text-emerald-300 mb-0`}>
                 Estimated Nutrition (per serving)
               </label>
-              <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <div>
-                  <label className="mb-1 block text-xs text-zinc-500">
-                    Calories
-                  </label>
-                  <input
-                    type="number"
-                    value={caloriesPerServing ?? ""}
-                    onChange={(e) =>
-                      setCaloriesPerServing(
-                        e.target.value ? parseInt(e.target.value) : null
-                      )
-                    }
-                    className={inputClass}
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs text-zinc-500">
-                    Protein (g)
-                  </label>
-                  <input
-                    type="number"
-                    value={proteinGrams ?? ""}
-                    onChange={(e) =>
-                      setProteinGrams(
-                        e.target.value ? parseInt(e.target.value) : null
-                      )
-                    }
-                    className={inputClass}
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs text-zinc-500">
-                    Carbs (g)
-                  </label>
-                  <input
-                    type="number"
-                    value={carbsGrams ?? ""}
-                    onChange={(e) =>
-                      setCarbsGrams(
-                        e.target.value ? parseInt(e.target.value) : null
-                      )
-                    }
-                    className={inputClass}
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs text-zinc-500">
-                    Fat (g)
-                  </label>
-                  <input
-                    type="number"
-                    value={fatGrams ?? ""}
-                    onChange={(e) =>
-                      setFatGrams(
-                        e.target.value ? parseInt(e.target.value) : null
-                      )
-                    }
-                    className={inputClass}
-                  />
-                </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  setEstimatingNutrition(true);
+                  try {
+                    const validIngs = ingredients.filter((i) => i.name.trim());
+                    if (validIngs.length === 0) { setError("Add ingredients first before estimating nutrition."); setEstimatingNutrition(false); return; }
+                    const res = await fetch("/api/estimate-nutrition", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ ingredients: validIngs, servings }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || "Failed");
+                    setCaloriesPerServing(Math.round(data.nutrition.calories_per_serving));
+                    setProteinGrams(Math.round(data.nutrition.protein_grams));
+                    setCarbsGrams(Math.round(data.nutrition.carbs_grams));
+                    setFatGrams(Math.round(data.nutrition.fat_grams));
+                    setError("");
+                  } catch (err: any) {
+                    setError("Error estimating nutrition: " + (err.message || "Unknown error"));
+                  }
+                  setEstimatingNutrition(false);
+                }}
+                disabled={estimatingNutrition}
+                className="flex items-center gap-1.5 rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 transition-colors dark:border-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300"
+              >
+                {estimatingNutrition ? (
+                  <>
+                    <div className="h-3 w-3 animate-spin rounded-full border-2 border-indigo-300 border-t-indigo-600" />
+                    Estimating…
+                  </>
+                ) : (
+                  <>
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
+                    Estimate with AI
+                  </>
+                )}
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div>
+                <label className="mb-1 block text-xs text-zinc-500">Calories</label>
+                <input type="number" value={caloriesPerServing ?? ""} onChange={(e) => setCaloriesPerServing(e.target.value ? parseInt(e.target.value) : null)} className={inputClass} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-zinc-500">Protein (g)</label>
+                <input type="number" value={proteinGrams ?? ""} onChange={(e) => setProteinGrams(e.target.value ? parseInt(e.target.value) : null)} className={inputClass} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-zinc-500">Carbs (g)</label>
+                <input type="number" value={carbsGrams ?? ""} onChange={(e) => setCarbsGrams(e.target.value ? parseInt(e.target.value) : null)} className={inputClass} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-zinc-500">Fat (g)</label>
+                <input type="number" value={fatGrams ?? ""} onChange={(e) => setFatGrams(e.target.value ? parseInt(e.target.value) : null)} className={inputClass} />
               </div>
             </div>
-          )}
+          </div>
 
           {/* Important Note */}
           <div>

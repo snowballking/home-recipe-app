@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { detectPlatform, extractYouTubeVideoId } from "@/lib/extract/detect-platform";
 import { fetchWebsiteContent, fetchPageImage } from "@/lib/extract/website";
-import { extractWithHaiku, extractFromYouTubeVideo } from "@/lib/extract/ai-extract";
+import { extractWithHaiku, extractFromYouTubeVideo, normaliseIngredientUnits } from "@/lib/extract/ai-extract";
 
 // ── POST /api/extract-recipe ────────────────────────────────────
 // Accepts: { url: "..." } → auto-detect platform, extract recipe via AI
@@ -79,6 +79,18 @@ export async function POST(request: NextRequest) {
     }
 
     if (imageUrl) recipe.hero_image_url = imageUrl;
+
+    // Normalise ingredient units (imperial → metric, abbreviations → full words)
+    if (Array.isArray(recipe.ingredients)) {
+      recipe.ingredients = normaliseIngredientUnits(
+        recipe.ingredients as { name: string; quantity: string; unit: string }[]
+      );
+    }
+    if (Array.isArray(recipe.ingredients_zh)) {
+      recipe.ingredients_zh = normaliseIngredientUnits(
+        recipe.ingredients_zh as { name: string; quantity: string; unit: string }[]
+      );
+    }
 
     const pipelineLabel = platform === "youtube" ? "gemini-youtube" : `haiku-${platform}`;
     return Response.json({ recipe, pipeline: pipelineLabel });
