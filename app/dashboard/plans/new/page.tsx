@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { DURATION_OPTIONS } from "@/lib/types";
@@ -18,6 +18,38 @@ export default function NewMealPlanPage() {
   const [durationType, setDurationType] = useState<"1_week" | "2_weeks" | "3_weeks" | "1_month">("1_week");
   const [startDate, setStartDate] = useState("");
   const [isPublic, setIsPublic] = useState(false);
+
+  // Approver picker state
+  const [approverSearch, setApproverSearch] = useState("");
+  const [approverResults, setApproverResults] = useState<{ id: string; displayname: string | null }[]>([]);
+  const [selectedApprover, setSelectedApprover] = useState<{ id: string; displayname: string | null } | null>(null);
+  const [searchingApprover, setSearchingApprover] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  // Get current user id
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setCurrentUserId(user.id);
+    });
+  }, [supabase]);
+
+  // Search for approver users
+  useEffect(() => {
+    const query = approverSearch.trim();
+    if (query.length < 2) { setApproverResults([]); return; }
+    const timer = setTimeout(async () => {
+      setSearchingApprover(true);
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, displayname")
+        .ilike("displayname", `%${query}%`)
+        .neq("id", currentUserId ?? "")
+        .limit(8);
+      setApproverResults(data ?? []);
+      setSearchingApprover(false);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [approverSearch, supabase, currentUserId]);
 
   // Calculate end_date based on duration_type
   function calculateEndDate(start: string, duration: string): string {
@@ -69,6 +101,7 @@ export default function NewMealPlanPage() {
         end_date: endDate,
         status: "draft",
         is_public: isPublic,
+        approver_id: selectedApprover?.id ?? null,
       })
       .select("id")
       .single();
@@ -169,6 +202,67 @@ export default function NewMealPlanPage() {
               />
             </div>
           )}
+
+          {/* Approver Picker */}
+          <div>
+            <label className={labelClass}>Approver (Optional)</label>
+            <p className="text-xs text-zinc-500 mb-2">Assign someone to review and approve this meal plan.</p>
+            {selectedApprover ? (
+              <div className="flex items-center gap-2 rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 px-3 py-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-200 dark:bg-indigo-800 text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+                  {(selectedApprover.displayname?.[0] ?? "?").toUpperCase()}
+                </div>
+                <span className="flex-1 text-sm font-medium text-indigo-700 dark:text-indigo-300">
+                  {selectedApprover.displayname ?? "Unknown"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => { setSelectedApprover(null); setApproverSearch(""); }}
+                  className="rounded-full p-1 text-indigo-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3l6 6M9 3l-6 6" /></svg>
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <input
+                  type="text"
+                  value={approverSearch}
+                  onChange={(e) => setApproverSearch(e.target.value)}
+                  placeholder="Search by username…"
+                  className={inputClass}
+                />
+                {searchingApprover && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
+                  </div>
+                )}
+                {approverResults.length > 0 && (
+                  <div className="absolute z-20 mt-1 w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg max-h-48 overflow-y-auto">
+                    {approverResults.map((user) => (
+                      <button
+                        key={user.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedApprover(user);
+                          setApproverSearch("");
+                          setApproverResults([]);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+                      >
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-200 dark:bg-zinc-700 text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                          {(user.displayname?.[0] ?? "?").toUpperCase()}
+                        </div>
+                        <span className="text-sm text-zinc-900 dark:text-zinc-100">
+                          {user.displayname ?? "Unknown"}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Public/Private Toggle */}
           <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">

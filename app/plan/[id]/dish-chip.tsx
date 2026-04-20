@@ -18,8 +18,11 @@ export function DishChip({ slot }: { slot: SlotWithRecipe }) {
   const displayTitle = (locale === "zh" && r.title_zh) ? r.title_zh : r.title;
 
   return (
-    <div className="space-y-1">
-      <div className="flex items-center gap-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 px-2 py-1.5">
+    <Link
+      href={`/recipe/${r.id}`}
+      className="block rounded-lg bg-indigo-50 dark:bg-indigo-900/20 px-2 py-1.5 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors"
+    >
+      <div className="flex items-center gap-2">
         {r.hero_image_url ? (
           <img src={r.hero_image_url} alt="" className="h-9 w-9 sm:h-8 sm:w-8 flex-shrink-0 rounded-md object-cover" />
         ) : (
@@ -34,18 +37,6 @@ export function DishChip({ slot }: { slot: SlotWithRecipe }) {
           )}
         </div>
       </div>
-      {r.source_url && (
-        <div className="flex flex-wrap gap-1">
-          <a href={r.source_url} target="_blank" rel="noopener noreferrer"
-            className="inline-block rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 transition-colors">
-            View Original
-          </a>
-          <Link href={`/dashboard/recipes/new?url=${encodeURIComponent(r.source_url)}`}
-            className="inline-block rounded-md bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:text-indigo-400 transition-colors">
-            Import
-          </Link>
-        </div>
-      )}
-    </div>
+    </Link>
   );
 }

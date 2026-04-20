@@ -1,9 +1,9 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { MealPlan, MealPlanSlot, Recipe, NutritionSummary } from "@/lib/types";
+import type { MealPlan, MealPlanSlot, MealPlanDayComment, Recipe, NutritionSummary } from "@/lib/types";
 import { RECIPE_CATEGORIES } from "@/lib/types";
 import Link from "next/link";
 import { useLanguage } from "@/lib/i18n/language-context";
@@ -227,6 +227,24 @@ export default function MealPlanDetailPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
 
+  // Meal remarks (per cell: "date_mealType" key → remark text, stored in meal_plans.meal_remarks JSONB)
+  const [mealRemarks, setMealRemarks] = useState<Record<string, string>>({});
+  const [editingRemarkKey, setEditingRemarkKey] = useState<string | null>(null); // "date_mealType" being edited
+  const [remarkDraft, setRemarkDraft] = useState("");
+
+  // Approval workflow
+  const [approverProfile, setApproverProfile] = useState<{ id: string; displayname: string | null } | null>(null);
+  const [dayComments, setDayComments] = useState<MealPlanDayComment[]>([]);
+  const [editingDayComment, setEditingDayComment] = useState<string | null>(null); // date being edited
+  const [dayCommentDraft, setDayCommentDraft] = useState("");
+  const [isApprover, setIsApprover] = useState(false);
+
+  // Approver picker (editable in detail page)
+  const [editingApprover, setEditingApprover] = useState(false);
+  const [approverSearch, setApproverSearch] = useState("");
+  const [approverResults, setApproverResults] = useState<{ id: string; displayname: string | null }[]>([]);
+  const [searchingApprover, setSearchingApprover] = useState(false);
+
   const slotsSelect = `
     *,
     recipes:recipe_id (
@@ -244,6 +262,7 @@ export default function MealPlanDetailPage() {
         .from("meal_plans").select("*").eq("id", planId).single();
       if (!planData) { router.push("/dashboard"); return; }
       setPlan(planData as MealPlan);
+      setMealRemarks((planData as any).meal_remarks ?? {});
 
       const { data: slotsData } = await supabase
         .from("meal_plan_slots").select(slotsSelect)
@@ -269,6 +288,24 @@ export default function MealPlanDetailPage() {
         author_name: r.profiles?.displayname ?? "Anonymous",
       })) as Recipe[]);
       setUserId(user.id);
+
+      // Load approver profile if assigned
+      if (planData.approver_id) {
+        const { data: approverData } = await supabase
+          .from("profiles").select("id, displayname").eq("id", planData.approver_id).single();
+        if (approverData) setApproverProfile(approverData);
+        setIsApprover(user.id === planData.approver_id);
+      }
+
+      // Load day comments
+      const { data: commentsData } = await supabase
+        .from("meal_plan_day_comments")
+        .select("*, profiles(displayname)")
+        .eq("meal_plan_id", planId)
+        .order("plan_date", { ascending: true })
+        .order("created_at", { ascending: true });
+      setDayComments((commentsData ?? []) as MealPlanDayComment[]);
+
       setLoading(false);
     }
     loadData();
@@ -461,6 +498,137 @@ export default function MealPlanDetailPage() {
     setSaving(false);
   }
 
+  // ── Approver search (debounced) ──────────────────────────────
+  useEffect(() => {
+    const query = approverSearch.trim();
+    if (query.length < 2) { setApproverResults([]); return; }
+    const timer = setTimeout(async () => {
+      setSearchingApprover(true);
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, displayname")
+        .ilike("displayname", `%${query}%`)
+        .neq("id", userId ?? "")
+        .limit(8);
+      setApproverResults(data ?? []);
+      setSearchingApprover(false);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [approverSearch, supabase, userId]);
+
+  // ── Meal Remarks (per cell, stored in meal_plans.meal_remarks JSONB) ──
+  async function saveMealRemark(cellKey: string) {
+    setSaving(true);
+    const updated = { ...mealRemarks };
+    if (remarkDraft.trim()) {
+      updated[cellKey] = remarkDraft.trim();
+    } else {
+      delete updated[cellKey];
+    }
+    const { error } = await supabase
+      .from("meal_plans")
+      .update({ meal_remarks: updated })
+      .eq("id", planId);
+    if (error) { setMessage("Error saving remark: " + error.message); }
+    else { setMealRemarks(updated); setPlan({ ...plan!, meal_remarks: updated }); }
+    setEditingRemarkKey(null);
+    setRemarkDraft("");
+    setSaving(false);
+  }
+
+  // ── Change Approver ────────────────────────────────────────
+  async function changeApprover(newApprover: { id: string; displayname: string | null } | null) {
+    setSaving(true); setMessage("");
+    const { error } = await supabase
+      .from("meal_plans")
+      .update({ approver_id: newApprover?.id ?? null, approval_status: null })
+      .eq("id", planId);
+    if (error) { setMessage("Error updating approver: " + error.message); }
+    else {
+      setPlan({ ...plan!, approver_id: newApprover?.id ?? null, approval_status: null });
+      setApproverProfile(newApprover);
+      setIsApprover(false);
+    }
+    setEditingApprover(false);
+    setApproverSearch("");
+    setApproverResults([]);
+    setSaving(false);
+  }
+
+  // ── Approval Workflow ──────────────────────────────────────
+  async function sendForApproval() {
+    if (!plan?.approver_id) {
+      setMessage(locale === "zh" ? "请先指定审批人" : "Please assign an approver first.");
+      return;
+    }
+    setSaving(true); setMessage("");
+    const { error } = await supabase
+      .from("meal_plans")
+      .update({ approval_status: "pending_approval" })
+      .eq("id", planId);
+    if (error) { setMessage("Error: " + error.message); }
+    else {
+      setPlan({ ...plan!, approval_status: "pending_approval" });
+      setMessage(locale === "zh" ? "已发送审批！" : "Sent for approval!");
+    }
+    setSaving(false);
+  }
+
+  async function updateApprovalStatus(status: "approved" | "changes_requested") {
+    setSaving(true); setMessage("");
+    const { error } = await supabase
+      .from("meal_plans")
+      .update({ approval_status: status })
+      .eq("id", planId);
+    if (error) { setMessage("Error: " + error.message); }
+    else {
+      setPlan({ ...plan!, approval_status: status });
+      setMessage(status === "approved"
+        ? (locale === "zh" ? "已批准！" : "Approved!")
+        : (locale === "zh" ? "已请求修改" : "Changes requested."));
+    }
+    setSaving(false);
+  }
+
+  // ── Day Comments (approver) ────────────────────────────────
+  async function saveDayComment(planDate: string) {
+    if (!dayCommentDraft.trim()) { setEditingDayComment(null); return; }
+    setSaving(true); setMessage("");
+    const { error } = await supabase.from("meal_plan_day_comments").insert({
+      meal_plan_id: planId,
+      plan_date: planDate,
+      user_id: userId,
+      comment: dayCommentDraft.trim(),
+    });
+    if (error) { setMessage("Error saving comment: " + error.message); }
+    else {
+      // Refetch comments
+      const { data } = await supabase
+        .from("meal_plan_day_comments")
+        .select("*, profiles(displayname)")
+        .eq("meal_plan_id", planId)
+        .order("plan_date", { ascending: true })
+        .order("created_at", { ascending: true });
+      setDayComments((data ?? []) as MealPlanDayComment[]);
+      setEditingDayComment(null);
+      setDayCommentDraft("");
+    }
+    setSaving(false);
+  }
+
+  async function deleteDayComment(commentId: string) {
+    setSaving(true);
+    const { error } = await supabase.from("meal_plan_day_comments").delete().eq("id", commentId);
+    if (!error) {
+      setDayComments((prev) => prev.filter((c) => c.id !== commentId));
+    }
+    setSaving(false);
+  }
+
+  function getDayComments(date: string): MealPlanDayComment[] {
+    return dayComments.filter((c) => c.plan_date === date);
+  }
+
   // Generate date range
   function generateDates(): string[] {
     if (!plan) return [];
@@ -552,7 +720,7 @@ export default function MealPlanDetailPage() {
                   title={locale === "zh" ? "点击编辑标题" : "Click to edit title"}
                 >
                   {plan.title}
-                  <svg className="inline-block ml-2 h-4 w-4 text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                  <svg className="inline-block ml-2 h-4 w-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                 </h1>
               )}
               <p className="mt-1 text-xs sm:text-sm text-zinc-600 dark:text-zinc-400">
@@ -567,7 +735,7 @@ export default function MealPlanDetailPage() {
             </Link>
           </div>
 
-          {/* Status + Description */}
+          {/* Status + Approval + Approver */}
           <div className="flex flex-wrap items-center gap-2">
             <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${
               plan.status === "finalized"
@@ -576,6 +744,30 @@ export default function MealPlanDetailPage() {
             }`}>
               {plan.status === "finalized" ? "Finalized" : "Draft"}
             </span>
+
+            {/* Approval status badge */}
+            {plan.approval_status && (
+              <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                plan.approval_status === "approved"
+                  ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                  : plan.approval_status === "pending_approval"
+                  ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+                  : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+              }`}>
+                {plan.approval_status === "approved" ? (locale === "zh" ? "已批准" : "Approved")
+                  : plan.approval_status === "pending_approval" ? (locale === "zh" ? "待审批" : "Pending Approval")
+                  : (locale === "zh" ? "需修改" : "Changes Requested")}
+              </span>
+            )}
+
+            {/* Approver info */}
+            {approverProfile && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-xs font-medium text-indigo-700 dark:text-indigo-400">
+                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                {locale === "zh" ? "审批人: " : "Approver: "}{approverProfile.displayname ?? "Unknown"}
+              </span>
+            )}
+
             {plan.description && (
               <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400">{plan.description}</p>
             )}
@@ -590,6 +782,81 @@ export default function MealPlanDetailPage() {
               : "border border-green-200 bg-green-50 text-green-700 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400"
           }`}>
             {message}
+          </div>
+        )}
+
+        {/* Approver Section (editable, above action buttons) */}
+        {plan.user_id === userId && (
+          <div className="mb-4 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                {locale === "zh" ? "审批人" : "Approver"}
+              </span>
+            </div>
+            {editingApprover ? (
+              <div className="relative">
+                <input
+                  autoFocus
+                  type="text"
+                  value={approverSearch}
+                  onChange={(e) => setApproverSearch(e.target.value)}
+                  placeholder={locale === "zh" ? "搜索用户名…" : "Search by username…"}
+                  className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+                {searchingApprover && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
+                  </div>
+                )}
+                {approverResults.length > 0 && (
+                  <div className="absolute z-20 mt-1 w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg max-h-48 overflow-y-auto">
+                    {approverResults.map((u) => (
+                      <button
+                        key={u.id}
+                        type="button"
+                        onClick={() => changeApprover(u)}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+                      >
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-200 dark:bg-zinc-700 text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                          {(u.displayname?.[0] ?? "?").toUpperCase()}
+                        </div>
+                        <span className="text-sm text-zinc-900 dark:text-zinc-100">{u.displayname ?? "Unknown"}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className="mt-2 flex gap-2">
+                  {approverProfile && (
+                    <button onClick={() => changeApprover(null)}
+                      className="rounded-lg bg-red-100 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 transition-colors">
+                      {locale === "zh" ? "移除审批人" : "Remove Approver"}
+                    </button>
+                  )}
+                  <button onClick={() => { setEditingApprover(false); setApproverSearch(""); setApproverResults([]); }}
+                    className="rounded-lg bg-zinc-100 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-700 dark:text-zinc-300 transition-colors">
+                    {locale === "zh" ? "取消" : "Cancel"}
+                  </button>
+                </div>
+              </div>
+            ) : approverProfile ? (
+              <div className="flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-200 dark:bg-indigo-800 text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+                  {(approverProfile.displayname?.[0] ?? "?").toUpperCase()}
+                </div>
+                <span className="flex-1 text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                  {approverProfile.displayname ?? "Unknown"}
+                </span>
+                <button onClick={() => setEditingApprover(true)}
+                  className="rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-700 dark:text-zinc-300 transition-colors">
+                  {locale === "zh" ? "更改" : "Change"}
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => setEditingApprover(true)}
+                className="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 font-medium transition-colors">
+                + {locale === "zh" ? "指定审批人" : "Assign Approver"}
+              </button>
+            )}
           </div>
         )}
 
@@ -690,6 +957,39 @@ export default function MealPlanDetailPage() {
               </>
             )}
           </div>
+          {/* Send for Approval (owner only, when approver is assigned) */}
+          {plan.approver_id && plan.user_id === userId && !plan.approval_status && (
+            <button onClick={sendForApproval} disabled={saving}
+              className="rounded-lg bg-amber-600 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50 transition-colors flex items-center gap-1.5">
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+              {locale === "zh" ? "发送审批" : "Send for Approval"}
+            </button>
+          )}
+          {/* Re-send after changes requested */}
+          {plan.approver_id && plan.user_id === userId && plan.approval_status === "changes_requested" && (
+            <button onClick={sendForApproval} disabled={saving}
+              className="rounded-lg bg-amber-600 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50 transition-colors flex items-center gap-1.5">
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+              {locale === "zh" ? "重新提交审批" : "Resubmit for Approval"}
+            </button>
+          )}
+
+          {/* Approver actions */}
+          {isApprover && plan.approval_status === "pending_approval" && (
+            <>
+              <button onClick={() => updateApprovalStatus("approved")} disabled={saving}
+                className="rounded-lg bg-green-600 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center gap-1.5">
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                {locale === "zh" ? "批准" : "Approve"}
+              </button>
+              <button onClick={() => updateApprovalStatus("changes_requested")} disabled={saving}
+                className="rounded-lg bg-orange-600 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white hover:bg-orange-700 disabled:opacity-50 transition-colors flex items-center gap-1.5">
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                {locale === "zh" ? "请求修改" : "Request Changes"}
+              </button>
+            </>
+          )}
+
           <button onClick={() => setShowDeleteConfirm(true)} disabled={saving}
             className="rounded-lg bg-red-600 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center gap-1.5">
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -748,7 +1048,8 @@ export default function MealPlanDetailPage() {
                 const dn = getDailyNutrition(date);
 
                 return (
-                  <tr key={date} className="border-b border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
+                  <React.Fragment key={date}>
+                  <tr className="border-b border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
                     <td className="px-4 py-3 text-sm font-medium text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
                       <div>{dayOfWeek}</div>
                       <div className="text-xs text-zinc-500 dark:text-zinc-400">{dateDisplay}</div>
@@ -795,6 +1096,49 @@ export default function MealPlanDetailPage() {
                               ) : null
                             )}
 
+                            {/* Meal Remark per cell (before + Add) */}
+                            {(() => {
+                              const cellKey = `${date}_${mealType}`;
+                              const existingRemark = mealRemarks[cellKey];
+                              return editingRemarkKey === cellKey ? (
+                                <div className="space-y-1">
+                                  <textarea
+                                    autoFocus
+                                    value={remarkDraft}
+                                    onChange={(e) => setRemarkDraft(e.target.value)}
+                                    rows={2}
+                                    className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-[11px] text-zinc-700 dark:text-zinc-300 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none resize-none"
+                                    placeholder={locale === "zh" ? "输入备注…" : "Enter remark…"}
+                                  />
+                                  <div className="flex gap-1">
+                                    <button onClick={() => saveMealRemark(cellKey)}
+                                      className="rounded bg-indigo-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-indigo-700">
+                                      {locale === "zh" ? "保存" : "Save"}
+                                    </button>
+                                    <button onClick={() => { setEditingRemarkKey(null); setRemarkDraft(""); }}
+                                      className="rounded bg-zinc-200 dark:bg-zinc-700 px-2 py-0.5 text-[10px] font-medium text-zinc-600 dark:text-zinc-300">
+                                      {locale === "zh" ? "取消" : "Cancel"}
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : existingRemark ? (
+                                <div
+                                  onClick={() => { setRemarkDraft(existingRemark); setEditingRemarkKey(cellKey); }}
+                                  className="cursor-pointer rounded bg-amber-50 dark:bg-amber-900/20 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400 leading-snug hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
+                                  title={locale === "zh" ? "点击编辑备注" : "Click to edit remark"}
+                                >
+                                  <span className="font-medium">{locale === "zh" ? "备注: " : "Note: "}</span>{existingRemark}
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => { setRemarkDraft(""); setEditingRemarkKey(cellKey); }}
+                                  className="text-[10px] text-zinc-400 hover:text-indigo-500 transition-colors"
+                                >
+                                  + {locale === "zh" ? "添加备注" : "Add Remark"}
+                                </button>
+                              );
+                            })()}
+
                             <button
                               onClick={() => setActiveCell({ date, mealType })}
                               className={`w-full rounded-lg border border-dashed py-1 px-2 text-xs font-medium transition-colors ${
@@ -817,6 +1161,68 @@ export default function MealPlanDetailPage() {
                       </div>
                     </td>
                   </tr>
+
+                  {/* Approver's Comments row for this day */}
+                  {(plan.approver_id || getDayComments(date).length > 0) && (
+                    <tr key={`comments-${date}`} className="border-b border-zinc-200 dark:border-zinc-800 bg-indigo-50/30 dark:bg-indigo-950/20">
+                      <td colSpan={6} className="px-4 py-2">
+                        <div className="flex items-start gap-2">
+                          <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 whitespace-nowrap mt-0.5">
+                            {locale === "zh" ? "审批人评论:" : "Approver's Comments:"}
+                          </span>
+                          <div className="flex-1 space-y-1">
+                            {getDayComments(date).map((c) => (
+                              <div key={c.id} className="flex items-start gap-2 group">
+                                <p className="text-[11px] text-zinc-700 dark:text-zinc-300 leading-snug flex-1">
+                                  <span className="font-medium text-indigo-600 dark:text-indigo-400">{(c as any).profiles?.displayname ?? "Approver"}:</span>{" "}
+                                  {c.comment}
+                                  <span className="ml-2 text-zinc-400 text-[10px]">{new Date(c.created_at).toLocaleDateString()}</span>
+                                </p>
+                                {c.user_id === userId && (
+                                  <button onClick={() => deleteDayComment(c.id)}
+                                    className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-red-500 transition-all">
+                                    <svg className="h-3 w-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3l6 6M9 3l-6 6" /></svg>
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                            {getDayComments(date).length === 0 && !editingDayComment && (
+                              <p className="text-[11px] text-zinc-400 italic">
+                                {locale === "zh" ? "暂无评论" : "No comments yet"}
+                              </p>
+                            )}
+                            {/* Approver can add comment */}
+                            {isApprover && editingDayComment === date ? (
+                              <div className="flex gap-1 items-end">
+                                <textarea
+                                  autoFocus
+                                  value={dayCommentDraft}
+                                  onChange={(e) => setDayCommentDraft(e.target.value)}
+                                  rows={2}
+                                  className="flex-1 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-[11px] text-zinc-700 dark:text-zinc-300 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none resize-none"
+                                  placeholder={locale === "zh" ? "输入评论…" : "Write a comment…"}
+                                />
+                                <button onClick={() => saveDayComment(date)}
+                                  className="rounded bg-indigo-600 px-2 py-1 text-[10px] font-medium text-white hover:bg-indigo-700">
+                                  {locale === "zh" ? "发送" : "Post"}
+                                </button>
+                                <button onClick={() => { setEditingDayComment(null); setDayCommentDraft(""); }}
+                                  className="rounded bg-zinc-200 dark:bg-zinc-700 px-2 py-1 text-[10px] font-medium text-zinc-600 dark:text-zinc-300">
+                                  {locale === "zh" ? "取消" : "Cancel"}
+                                </button>
+                              </div>
+                            ) : isApprover && plan.approval_status === "pending_approval" ? (
+                              <button onClick={() => { setEditingDayComment(date); setDayCommentDraft(""); }}
+                                className="text-[10px] text-indigo-500 hover:text-indigo-700 font-medium transition-colors">
+                                + {locale === "zh" ? "添加评论" : "Add Comment"}
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
                 );
               })}
             </tbody>
@@ -896,6 +1302,52 @@ export default function MealPlanDetailPage() {
                             )}
                           </div>
                         )}
+
+                        {/* Mobile: Meal remark per cell (after dishes, before next meal) */}
+                        {(() => {
+                          const cellKey = `${date}_${mealType}`;
+                          const existingRemark = mealRemarks[cellKey];
+                          return (
+                            <div className="mt-2">
+                              {editingRemarkKey === cellKey ? (
+                                <div className="space-y-1">
+                                  <textarea
+                                    autoFocus
+                                    value={remarkDraft}
+                                    onChange={(e) => setRemarkDraft(e.target.value)}
+                                    rows={2}
+                                    className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-xs text-zinc-700 dark:text-zinc-300 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none resize-none"
+                                    placeholder={locale === "zh" ? "输入备注…" : "Enter remark…"}
+                                  />
+                                  <div className="flex gap-1">
+                                    <button onClick={() => saveMealRemark(cellKey)}
+                                      className="rounded bg-indigo-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-indigo-700">
+                                      {locale === "zh" ? "保存" : "Save"}
+                                    </button>
+                                    <button onClick={() => { setEditingRemarkKey(null); setRemarkDraft(""); }}
+                                      className="rounded bg-zinc-200 dark:bg-zinc-700 px-2 py-0.5 text-[10px] font-medium text-zinc-600 dark:text-zinc-300">
+                                      {locale === "zh" ? "取消" : "Cancel"}
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : existingRemark ? (
+                                <div
+                                  onClick={() => { setRemarkDraft(existingRemark); setEditingRemarkKey(cellKey); }}
+                                  className="cursor-pointer rounded bg-amber-50 dark:bg-amber-900/20 px-2 py-1 text-xs text-amber-700 dark:text-amber-400 leading-snug"
+                                >
+                                  <span className="font-medium">{locale === "zh" ? "备注: " : "Note: "}</span>{existingRemark}
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => { setRemarkDraft(""); setEditingRemarkKey(cellKey); }}
+                                  className="text-[11px] text-zinc-400 hover:text-indigo-500 transition-colors"
+                                >
+                                  + {locale === "zh" ? "添加备注" : "Add Remark"}
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     );
                   })}
@@ -907,6 +1359,61 @@ export default function MealPlanDetailPage() {
                   <span>C: {dn.carbs.toFixed(0)}g</span>
                   <span>F: {dn.fat.toFixed(0)}g</span>
                 </div>
+
+                {/* Approver's Comments for this day (mobile) */}
+                {(plan.approver_id || getDayComments(date).length > 0) && (
+                  <div className="border-t border-indigo-100 dark:border-indigo-900/30 bg-indigo-50/40 dark:bg-indigo-950/20 px-4 py-3">
+                    <p className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 mb-1.5">
+                      {locale === "zh" ? "审批人评论" : "Approver's Comments"}
+                    </p>
+                    {getDayComments(date).length > 0 ? (
+                      <div className="space-y-1.5">
+                        {getDayComments(date).map((c) => (
+                          <div key={c.id} className="flex items-start gap-2">
+                            <p className="text-xs text-zinc-700 dark:text-zinc-300 leading-snug flex-1">
+                              <span className="font-medium text-indigo-600 dark:text-indigo-400">{(c as any).profiles?.displayname ?? "Approver"}:</span>{" "}
+                              {c.comment}
+                            </p>
+                            {c.user_id === userId && (
+                              <button onClick={() => deleteDayComment(c.id)} className="text-zinc-400 hover:text-red-500">
+                                <svg className="h-3 w-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3l6 6M9 3l-6 6" /></svg>
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-zinc-400 italic">{locale === "zh" ? "暂无评论" : "No comments yet"}</p>
+                    )}
+                    {isApprover && plan.approval_status === "pending_approval" && (
+                      editingDayComment === date ? (
+                        <div className="mt-2 flex gap-1 items-end">
+                          <textarea
+                            autoFocus
+                            value={dayCommentDraft}
+                            onChange={(e) => setDayCommentDraft(e.target.value)}
+                            rows={2}
+                            className="flex-1 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-xs text-zinc-700 dark:text-zinc-300 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none resize-none"
+                            placeholder={locale === "zh" ? "输入评论…" : "Write a comment…"}
+                          />
+                          <button onClick={() => saveDayComment(date)}
+                            className="rounded bg-indigo-600 px-2 py-1 text-[10px] font-medium text-white hover:bg-indigo-700">
+                            {locale === "zh" ? "发送" : "Post"}
+                          </button>
+                          <button onClick={() => { setEditingDayComment(null); setDayCommentDraft(""); }}
+                            className="rounded bg-zinc-200 dark:bg-zinc-700 px-2 py-1 text-[10px] font-medium text-zinc-600 dark:text-zinc-300">
+                            {locale === "zh" ? "取消" : "Cancel"}
+                          </button>
+                        </div>
+                      ) : (
+                        <button onClick={() => { setEditingDayComment(date); setDayCommentDraft(""); }}
+                          className="mt-1.5 text-[11px] text-indigo-500 hover:text-indigo-700 font-medium">
+                          + {locale === "zh" ? "添加评论" : "Add Comment"}
+                        </button>
+                      )
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}

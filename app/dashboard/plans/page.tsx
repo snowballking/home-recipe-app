@@ -23,13 +23,32 @@ function getStatusBadgeColor(status: string): string {
   return "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200";
 }
 
+function getApprovalBadge(status: string | null, locale: string): { label: string; color: string } | null {
+  if (!status) return null;
+  if (status === "pending_approval") return {
+    label: locale === "zh" ? "待审批" : "Pending Approval",
+    color: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
+  };
+  if (status === "approved") return {
+    label: locale === "zh" ? "已批准" : "Approved",
+    color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+  };
+  if (status === "changes_requested") return {
+    label: locale === "zh" ? "需修改" : "Changes Requested",
+    color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+  };
+  return null;
+}
+
 export default function MyPlansPage() {
   const router = useRouter();
   const supabase = createClient();
   const { locale, t } = useLanguage();
   const [plans, setPlans] = useState<MealPlan[]>([]);
+  const [approvalPlans, setApprovalPlans] = useState<(MealPlan & { owner_name?: string })[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -40,6 +59,7 @@ export default function MyPlansPage() {
           return;
         }
 
+        // My own plans
         const { data } = await supabase
           .from("meal_plans")
           .select("*")
@@ -47,6 +67,47 @@ export default function MyPlansPage() {
           .order("created_at", { ascending: false });
 
         setPlans((data ?? []) as MealPlan[]);
+
+        // Plans assigned to me for approval
+        // Try RPC function first (SECURITY DEFINER, bypasses RLS), then direct query
+        try {
+          let approvalData: any[] | null = null;
+
+          // Attempt 1: RPC function (migration 020 — bypasses RLS)
+          const { data: rpcData, error: rpcError } = await supabase.rpc("get_approval_plans");
+          if (!rpcError && rpcData && rpcData.length > 0) {
+            approvalData = rpcData;
+          } else {
+            if (rpcError) console.warn("rpc get_approval_plans not available:", rpcError.message);
+            // Attempt 2: direct query (works if RLS policies from migration 020 are applied)
+            const { data: directData, error: directError } = await supabase
+              .from("meal_plans")
+              .select("*")
+              .eq("approver_id", user.id)
+              .order("created_at", { ascending: false });
+            if (directError) {
+              console.error("Direct approval query error:", directError.message);
+            }
+            approvalData = directData;
+          }
+
+          if (approvalData && approvalData.length > 0) {
+            // Fetch owner display names
+            const approvalWithNames = await Promise.all(
+              approvalData.map(async (p: any) => {
+                const { data: profile } = await supabase
+                  .from("profiles")
+                  .select("displayname")
+                  .eq("id", p.user_id)
+                  .single();
+                return { ...p, owner_name: profile?.displayname ?? "Unknown" };
+              })
+            );
+            setApprovalPlans(approvalWithNames as (MealPlan & { owner_name?: string })[]);
+          }
+        } catch (err) {
+          console.error("Error loading approval plans:", err);
+        }
       } catch {
         // auth lock race
       }
@@ -119,6 +180,59 @@ export default function MyPlansPage() {
           </Link>
         </div>
 
+        {/* ── Meal Plans for Approval ── */}
+        {approvalPlans.length > 0 && (
+          <div className="mt-8">
+            <div className="flex items-center gap-2 mb-4">
+              <svg className="h-5 w-5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
+                {locale === "zh" ? "待审批的膳食计划" : "Meal Plans for Approval"}
+              </h2>
+              <span className="rounded-full bg-orange-100 dark:bg-orange-900/30 px-2 py-0.5 text-xs font-semibold text-orange-700 dark:text-orange-400">
+                {approvalPlans.filter((p) => p.approval_status === "pending_approval").length}
+              </span>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {approvalPlans.map((plan) => {
+                const badge = getApprovalBadge(plan.approval_status, locale);
+                return (
+                  <Link
+                    key={plan.id}
+                    href={`/dashboard/plans/${plan.id}`}
+                    className="group rounded-lg border border-orange-200 dark:border-orange-800/50 bg-orange-50/50 dark:bg-orange-950/20 p-5 hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">
+                          {plan.title}
+                        </h3>
+                        <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+                          {locale === "zh" ? "来自: " : "From: "}
+                          <span className="font-medium text-zinc-700 dark:text-zinc-300">{plan.owner_name}</span>
+                        </p>
+                        <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+                          {formatDateRange(plan.start_date, plan.end_date, locale)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {badge && (
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${badge.color}`}>
+                          {badge.label}
+                        </span>
+                      )}
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusBadgeColor(plan.status)}`}>
+                        {plan.status === "finalized" ? t("my_plans.finalized") : t("my_plans.draft")}
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── My Plans ── */}
         {/* Plans Grid */}
         {plans.length === 0 ? (
           <div className="mt-12 text-center">
@@ -167,6 +281,14 @@ export default function MyPlansPage() {
                     >
                       {plan.status === "finalized" ? t("my_plans.finalized") : t("my_plans.draft")}
                     </span>
+                    {(() => {
+                      const ab = getApprovalBadge(plan.approval_status, locale);
+                      return ab ? (
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${ab.color}`}>
+                          {ab.label}
+                        </span>
+                      ) : null;
+                    })()}
                     {plan.is_public && (
                       <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                         {t("my_plans.public")}

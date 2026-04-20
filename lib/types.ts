@@ -86,6 +86,8 @@ export type DurationType = "1_week" | "2_weeks" | "3_weeks" | "1_month";
 export type PlanStatus = "draft" | "finalized";
 export type SlotMealType = "breakfast" | "lunch" | "dinner" | "snack";
 
+export type ApprovalStatus = "pending_approval" | "approved" | "changes_requested";
+
 export interface MealPlan {
   id: string;
   user_id: string;
@@ -98,10 +100,14 @@ export interface MealPlan {
   is_public: boolean;
   notes: string | null;
   comment_count: number;
+  approver_id: string | null;
+  approval_status: ApprovalStatus | null;
+  meal_remarks: Record<string, string>;
   created_at: string;
   updated_at: string;
   // Joined
   profiles?: Profile;
+  approver?: Profile;
 }
 
 export interface MealPlanSlot {
@@ -116,6 +122,18 @@ export interface MealPlanSlot {
   created_at: string;
   // Joined
   recipes?: Recipe;
+}
+
+export interface MealPlanDayComment {
+  id: string;
+  meal_plan_id: string;
+  plan_date: string;
+  user_id: string;
+  comment: string;
+  created_at: string;
+  updated_at: string;
+  // Joined
+  profiles?: Profile;
 }
 
 export interface MealPlanComment {
