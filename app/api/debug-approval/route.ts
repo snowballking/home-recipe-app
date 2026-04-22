@@ -66,11 +66,18 @@ export async function GET(_request: NextRequest) {
     error: allError?.message ?? null,
   };
 
-  // 6. Check RLS policies existence via pg_policies
-  const { data: policies, error: policiesError } = await supabase
-    .rpc("get_approval_plans")  // Dummy to check function exists
-    .then(() => ({ data: "RPC function exists", error: null }))
-    .catch((err: any) => ({ data: null, error: err.message }));
+  // 6. Check parameterized RPC function
+  const { data: paramRpcData, error: paramRpcError } = await supabase.rpc("get_plans_for_approver", {
+    p_user_id: user.id,
+  });
+  results.parameterizedRpc = {
+    count: paramRpcData?.length ?? 0,
+    data: paramRpcData?.map((p: any) => ({
+      id: p.id, title: p.title, user_id: p.user_id,
+      approver_id: p.approver_id, approval_status: p.approval_status,
+    })),
+    error: paramRpcError?.message ?? null,
+  };
 
   // 7. Conclusion
   let conclusion = "UNKNOWN";

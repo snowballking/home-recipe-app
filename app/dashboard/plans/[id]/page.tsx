@@ -258,17 +258,39 @@ export default function MealPlanDetailPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
 
-      const { data: planData } = await supabase
+      let planData: any = null;
+      let slotsData: any[] | null = null;
+
+      // Try direct query first (works for plan owner)
+      const { data: directPlan } = await supabase
         .from("meal_plans").select("*").eq("id", planId).single();
+      planData = directPlan;
+
+      if (planData) {
+        // Direct query worked — also fetch slots directly
+        const { data: directSlots } = await supabase
+          .from("meal_plan_slots").select(slotsSelect)
+          .eq("meal_plan_id", planId)
+          .order("plan_date", { ascending: true })
+          .order("meal_type", { ascending: true });
+        slotsData = directSlots;
+      } else {
+        // Direct query failed (approver without RLS access) — use API route
+        try {
+          const res = await fetch(`/api/approval-plans/${planId}`);
+          if (res.ok) {
+            const json = await res.json();
+            planData = json.plan ?? null;
+            slotsData = json.slots ?? null;
+          }
+        } catch {
+          // API route not available
+        }
+      }
+
       if (!planData) { router.push("/dashboard"); return; }
       setPlan(planData as MealPlan);
       setMealRemarks((planData as any).meal_remarks ?? {});
-
-      const { data: slotsData } = await supabase
-        .from("meal_plan_slots").select(slotsSelect)
-        .eq("meal_plan_id", planId)
-        .order("plan_date", { ascending: true })
-        .order("meal_type", { ascending: true });
       setSlots((slotsData ?? []) as SlotWithRecipe[]);
 
       // Load user's own recipes + all public recipes
@@ -297,14 +319,8 @@ export default function MealPlanDetailPage() {
         setIsApprover(user.id === planData.approver_id);
       }
 
-      // Load day comments
-      const { data: commentsData } = await supabase
-        .from("meal_plan_day_comments")
-        .select("*, profiles(displayname)")
-        .eq("meal_plan_id", planId)
-        .order("plan_date", { ascending: true })
-        .order("created_at", { ascending: true });
-      setDayComments((commentsData ?? []) as MealPlanDayComment[]);
+      // Load day comments — try RPC first (bypasses RLS), then direct query
+      await loadDayComments(planId, user.id);
 
       setLoading(false);
     }
@@ -591,25 +607,70 @@ export default function MealPlanDetailPage() {
   }
 
   // ── Day Comments (approver) ────────────────────────────────
+  // Helper to load day comments (used on initial load and after save)
+  async function loadDayComments(mealPlanId: string, currentUserId: string) {
+    let comments: any[] = [];
+
+    // Try RPC function first (SECURITY DEFINER, bypasses RLS)
+    const { data: rpcData, error: rpcError } = await supabase.rpc("get_day_comments", {
+      p_meal_plan_id: mealPlanId,
+      p_user_id: currentUserId,
+    });
+    if (!rpcError && rpcData) {
+      comments = rpcData.map((c: any) => ({
+        ...c,
+        profiles: { displayname: c.displayname ?? "Unknown" },
+      }));
+    } else {
+      // Fallback: direct query + separate profile fetch
+      const { data: directData } = await supabase
+        .from("meal_plan_day_comments")
+        .select("*")
+        .eq("meal_plan_id", mealPlanId)
+        .order("plan_date", { ascending: true })
+        .order("created_at", { ascending: true });
+      if (directData && directData.length > 0) {
+        const userIds = [...new Set(directData.map((c: any) => c.user_id))];
+        const { data: profiles } = await supabase
+          .from("profiles").select("id, displayname").in("id", userIds);
+        const nameMap: Record<string, string> = {};
+        (profiles ?? []).forEach((p: any) => { nameMap[p.id] = p.displayname ?? "Unknown"; });
+        comments = directData.map((c: any) => ({
+          ...c,
+          profiles: { displayname: nameMap[c.user_id] ?? "Unknown" },
+        }));
+      }
+    }
+    setDayComments(comments as MealPlanDayComment[]);
+  }
+
   async function saveDayComment(planDate: string) {
     if (!dayCommentDraft.trim()) { setEditingDayComment(null); return; }
     setSaving(true); setMessage("");
-    const { error } = await supabase.from("meal_plan_day_comments").insert({
-      meal_plan_id: planId,
-      plan_date: planDate,
-      user_id: userId,
-      comment: dayCommentDraft.trim(),
+
+    // Try RPC insert first (bypasses RLS), fallback to direct insert
+    let insertError: string | null = null;
+    const { error: rpcErr } = await supabase.rpc("insert_day_comment", {
+      p_meal_plan_id: planId,
+      p_plan_date: planDate,
+      p_user_id: userId,
+      p_comment: dayCommentDraft.trim(),
     });
-    if (error) { setMessage("Error saving comment: " + error.message); }
-    else {
-      // Refetch comments
-      const { data } = await supabase
-        .from("meal_plan_day_comments")
-        .select("*, profiles(displayname)")
-        .eq("meal_plan_id", planId)
-        .order("plan_date", { ascending: true })
-        .order("created_at", { ascending: true });
-      setDayComments((data ?? []) as MealPlanDayComment[]);
+    if (rpcErr) {
+      // Fallback to direct insert
+      const { error: directErr } = await supabase.from("meal_plan_day_comments").insert({
+        meal_plan_id: planId,
+        plan_date: planDate,
+        user_id: userId,
+        comment: dayCommentDraft.trim(),
+      });
+      if (directErr) insertError = directErr.message;
+    }
+
+    if (insertError) {
+      setMessage("Error saving comment: " + insertError);
+    } else {
+      await loadDayComments(planId, userId!);
       setEditingDayComment(null);
       setDayCommentDraft("");
     }
@@ -618,10 +679,15 @@ export default function MealPlanDetailPage() {
 
   async function deleteDayComment(commentId: string) {
     setSaving(true);
-    const { error } = await supabase.from("meal_plan_day_comments").delete().eq("id", commentId);
-    if (!error) {
-      setDayComments((prev) => prev.filter((c) => c.id !== commentId));
+    // Try RPC delete first (bypasses RLS), fallback to direct delete
+    const { error: rpcErr } = await supabase.rpc("delete_day_comment", {
+      p_comment_id: commentId,
+      p_user_id: userId,
+    });
+    if (rpcErr) {
+      await supabase.from("meal_plan_day_comments").delete().eq("id", commentId);
     }
+    setDayComments((prev) => prev.filter((c) => c.id !== commentId));
     setSaving(false);
   }
 

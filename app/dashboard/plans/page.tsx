@@ -48,7 +48,6 @@ export default function MyPlansPage() {
   const [approvalPlans, setApprovalPlans] = useState<(MealPlan & { owner_name?: string })[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [debugInfo, setDebugInfo] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -68,45 +67,39 @@ export default function MyPlansPage() {
 
         setPlans((data ?? []) as MealPlan[]);
 
-        // Plans assigned to me for approval
-        // Try RPC function first (SECURITY DEFINER, bypasses RLS), then direct query
+        // Plans assigned to me for approval — fetched via server API route
         try {
-          let approvalData: any[] | null = null;
-
-          // Attempt 1: RPC function (migration 020 — bypasses RLS)
-          const { data: rpcData, error: rpcError } = await supabase.rpc("get_approval_plans");
-          if (!rpcError && rpcData && rpcData.length > 0) {
-            approvalData = rpcData;
-          } else {
-            if (rpcError) console.warn("rpc get_approval_plans not available:", rpcError.message);
-            // Attempt 2: direct query (works if RLS policies from migration 020 are applied)
-            const { data: directData, error: directError } = await supabase
-              .from("meal_plans")
-              .select("*")
-              .eq("approver_id", user.id)
-              .order("created_at", { ascending: false });
-            if (directError) {
-              console.error("Direct approval query error:", directError.message);
+          const res = await fetch("/api/approval-plans");
+          if (res.ok) {
+            const json = await res.json();
+            // Log debug info as readable text
+            if (json._debug) {
+              console.log(
+                "[approval-plans] YOU=" + json._debug.you +
+                " | plans=" + json._debug.planCount +
+                " | method=" + json._debug.method +
+                (json._debug.errors ? " | ERRORS: " + json._debug.errors.join("; ") : "")
+              );
+              if (json._debug.all_plans_with_approver) {
+                console.log("[approval-plans] Plans with approvers in DB:");
+                json._debug.all_plans_with_approver.forEach((p: any) => {
+                  console.log(
+                    "  → \"" + p.plan_title + "\" assigned to: " +
+                    p.approver_name_in_db + " (" + p.approver_id_in_db + ")" +
+                    " | matches_you=" + p.matches_you
+                  );
+                });
+              }
             }
-            approvalData = directData;
-          }
-
-          if (approvalData && approvalData.length > 0) {
-            // Fetch owner display names
-            const approvalWithNames = await Promise.all(
-              approvalData.map(async (p: any) => {
-                const { data: profile } = await supabase
-                  .from("profiles")
-                  .select("displayname")
-                  .eq("id", p.user_id)
-                  .single();
-                return { ...p, owner_name: profile?.displayname ?? "Unknown" };
-              })
-            );
-            setApprovalPlans(approvalWithNames as (MealPlan & { owner_name?: string })[]);
+            if (json.plans && json.plans.length > 0) {
+              setApprovalPlans(json.plans as (MealPlan & { owner_name?: string })[]);
+            }
+          } else {
+            const errText = await res.text();
+            console.error("[approval-plans] API error " + res.status + ": " + errText);
           }
         } catch (err) {
-          console.error("Error loading approval plans:", err);
+          console.error("[approval-plans] fetch error:", err);
         }
       } catch {
         // auth lock race

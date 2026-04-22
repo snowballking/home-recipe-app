@@ -1,14 +1,13 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getAdminClient } from "@/lib/supabase/admin";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 // GET /api/approval-plans
 // Returns meal plans where the current user is the assigned approver.
-// Uses the service-role client to bypass RLS so non-admin approvers
-// can see plans assigned to them.
+// Uses the service role key to bypass RLS entirely.
 
 export async function GET(_request: NextRequest) {
-  // 1. Authenticate the caller via their session cookie
+  // 1. Authenticate via session cookie
   const supabase = await createClient();
   const {
     data: { user },
@@ -19,31 +18,45 @@ export async function GET(_request: NextRequest) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
-    const admin = getAdminClient();
+  const userId = user.id;
+  const errors: string[] = [];
 
-    // 2. Fetch plans assigned to this user as approver (bypasses RLS)
-    const { data: plans, error: plansError } = await admin
-      .from("meal_plans")
-      .select("*")
-      .eq("approver_id", user.id)
-      .order("created_at", { ascending: false });
+  // 2. Build a service-role client inline (bypasses all RLS)
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (plansError) {
-      console.error("[approval-plans] Query error:", plansError);
-      return Response.json(
-        { error: "Failed to fetch approval plans: " + plansError.message },
-        { status: 500 }
-      );
-    }
+  if (!url || !serviceKey) {
+    errors.push(
+      "SUPABASE_SERVICE_ROLE_KEY is missing from .env.local. " +
+      "Get it from: Supabase Dashboard → Settings → API → service_role (the secret key, NOT the anon key)."
+    );
+    // Fall back to regular client (will be subject to RLS)
+  }
 
-    if (!plans || plans.length === 0) {
-      return Response.json({ plans: [] });
-    }
+  const queryClient = (url && serviceKey)
+    ? createSupabaseClient(url, serviceKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
+      })
+    : supabase;  // fallback to cookie-auth client
 
-    // 3. Batch-fetch owner display names
-    const ownerIds = [...new Set(plans.map((p: any) => p.user_id))];
-    const { data: profiles } = await admin
+  const method = (url && serviceKey) ? "service_role" : "anon_key_fallback";
+
+  // 3. Query meal plans where this user is the approver
+  const { data: plans, error: queryError } = await queryClient
+    .from("meal_plans")
+    .select("*")
+    .eq("approver_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (queryError) {
+    errors.push(`Query error: ${queryError.message}`);
+  }
+
+  // 4. Fetch owner display names
+  let plansWithNames = plans ?? [];
+  if (plansWithNames.length > 0) {
+    const ownerIds = [...new Set(plansWithNames.map((p: any) => p.user_id))];
+    const { data: profiles } = await queryClient
       .from("profiles")
       .select("id, displayname")
       .in("id", ownerIds);
@@ -53,17 +66,63 @@ export async function GET(_request: NextRequest) {
       nameMap[p.id] = p.displayname ?? "Unknown";
     });
 
-    const plansWithNames = plans.map((p: any) => ({
+    plansWithNames = plansWithNames.map((p: any) => ({
       ...p,
       owner_name: nameMap[p.user_id] ?? "Unknown",
     }));
-
-    return Response.json({ plans: plansWithNames });
-  } catch (err: any) {
-    console.error("[approval-plans] Error:", err.message);
-    return Response.json(
-      { error: err.message || "Internal server error" },
-      { status: 500 }
-    );
   }
+
+  // 5. Debug: check ALL plans that have any approver_id set
+  let debugApproverData: any[] = [];
+  let debugYourProfile: any = null;
+  let debugApproverProfile: any = null;
+  if (plansWithNames.length === 0 && queryClient) {
+    // Get your profile name
+    const { data: yourProfile } = await queryClient
+      .from("profiles")
+      .select("id, displayname")
+      .eq("id", userId)
+      .single();
+    debugYourProfile = yourProfile;
+
+    const { data: allWithApprover } = await queryClient
+      .from("meal_plans")
+      .select("id, title, user_id, approver_id, approval_status")
+      .not("approver_id", "is", null);
+
+    // Get the approver profile names for all plans
+    const approverIds = [...new Set((allWithApprover ?? []).map((p: any) => p.approver_id))];
+    let approverNames: Record<string, string> = {};
+    if (approverIds.length > 0) {
+      const { data: approverProfiles } = await queryClient
+        .from("profiles")
+        .select("id, displayname")
+        .in("id", approverIds);
+      (approverProfiles ?? []).forEach((p: any) => {
+        approverNames[p.id] = p.displayname ?? "Unknown";
+      });
+    }
+
+    debugApproverData = (allWithApprover ?? []).map((p: any) => ({
+      plan_title: p.title,
+      approver_id_in_db: p.approver_id,
+      approver_name_in_db: approverNames[p.approver_id] ?? "Unknown",
+      approval_status: p.approval_status,
+      matches_you: p.approver_id === userId,
+    }));
+  }
+
+  return Response.json({
+    plans: plansWithNames,
+    _debug: {
+      you: debugYourProfile
+        ? `${debugYourProfile.displayname} (${userId})`
+        : userId,
+      method,
+      planCount: plansWithNames.length,
+      hasServiceKey: !!serviceKey,
+      errors: errors.length > 0 ? errors : undefined,
+      all_plans_with_approver: debugApproverData.length > 0 ? debugApproverData : undefined,
+    },
+  });
 }
