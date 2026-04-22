@@ -219,6 +219,7 @@ export default function GroceryListPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [copied, setCopied] = useState(false);
 
   // Load data
   useEffect(() => {
@@ -410,6 +411,92 @@ export default function GroceryListPage() {
     setSaving(false);
   }
 
+  // Copy grocery list to clipboard as plain text
+  async function copyToClipboard() {
+    const categoryEmoji: Record<GroceryCategory, string> = {
+      produce: "🥬",
+      dairy: "🥛",
+      meat: "🥩",
+      seafood: "🐟",
+      bakery: "🍞",
+      frozen: "🧊",
+      canned: "🥫",
+      condiments: "🫙",
+      spices: "🧂",
+      grains: "🌾",
+      snacks: "🍿",
+      beverages: "🥤",
+      other: "📦",
+    };
+
+    const categoryLabelsForCopy: Record<GroceryCategory, string> = {
+      produce: "Produce",
+      dairy: "Dairy",
+      meat: "Meat",
+      seafood: "Seafood",
+      bakery: "Bakery",
+      frozen: "Frozen Foods",
+      canned: "Canned Goods",
+      condiments: "Condiments & Sauces",
+      spices: "Spices & Herbs",
+      grains: "Grains & Pasta",
+      snacks: "Snacks",
+      beverages: "Beverages",
+      other: "Other",
+    };
+
+    // Build grouped text
+    const allCategories: GroceryCategory[] = [
+      "produce", "dairy", "meat", "seafood", "bakery", "frozen",
+      "canned", "condiments", "spices", "grains", "snacks", "beverages", "other",
+    ];
+
+    const grouped: Record<GroceryCategory, GroceryItem[]> = {
+      produce: [], dairy: [], meat: [], seafood: [], bakery: [],
+      frozen: [], canned: [], condiments: [], spices: [], grains: [],
+      snacks: [], beverages: [], other: [],
+    };
+
+    groceryItems.forEach((item) => {
+      grouped[item.category].push(item);
+    });
+
+    let text = `🛒 Grocery List — ${plan?.title ?? "Meal Plan"}\n\n`;
+
+    allCategories.forEach((cat) => {
+      const items = grouped[cat];
+      if (items.length === 0) return;
+
+      text += `${categoryEmoji[cat]} ${categoryLabelsForCopy[cat]}\n`;
+      items.forEach((item) => {
+        const qty = item.quantity && item.unit
+          ? ` (${item.quantity} ${item.unit})`
+          : "";
+        const check = item.is_checked ? "✅" : "⬜";
+        text += `${check} ${item.name}${qty}\n`;
+      });
+      text += "\n";
+    });
+
+    try {
+      await navigator.clipboard.writeText(text.trim());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for older browsers / non-HTTPS
+      const textarea = document.createElement("textarea");
+      textarea.value = text.trim();
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-full bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
@@ -526,6 +613,13 @@ export default function GroceryListPage() {
             className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
           >
             Regenerate List
+          </button>
+
+          <button
+            onClick={copyToClipboard}
+            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 transition-colors"
+          >
+            {copied ? "✓ Copied!" : "Copy List"}
           </button>
 
           <button
