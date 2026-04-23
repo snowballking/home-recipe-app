@@ -232,6 +232,10 @@ export default function MealPlanDetailPage() {
   const [editingRemarkKey, setEditingRemarkKey] = useState<string | null>(null); // "date_mealType" being edited
   const [remarkDraft, setRemarkDraft] = useState("");
 
+  // Overall plan notes
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notesDraft, setNotesDraft] = useState("");
+
   // Approval workflow
   const [approverProfile, setApproverProfile] = useState<{ id: string; displayname: string | null } | null>(null);
   const [dayComments, setDayComments] = useState<MealPlanDayComment[]>([]);
@@ -327,8 +331,23 @@ export default function MealPlanDetailPage() {
     loadData();
   }, [planId, supabase, router]);
 
-  // Refetch helper
+  // Determine if current user can edit (owner or approver)
+  const canEdit = plan?.user_id === userId || isApprover;
+  const isOwner = plan?.user_id === userId;
+
+  // Refetch helper — uses API route for approvers
   async function refetchSlots() {
+    if (isApprover && !isOwner) {
+      // Approver: use API route to fetch slots (bypasses RLS)
+      try {
+        const res = await fetch(`/api/approval-plans/${planId}`);
+        if (res.ok) {
+          const json = await res.json();
+          setSlots((json.slots ?? []) as SlotWithRecipe[]);
+          return;
+        }
+      } catch { /* fall through */ }
+    }
     const { data: slotsData } = await supabase
       .from("meal_plan_slots").select(slotsSelect)
       .eq("meal_plan_id", planId)
@@ -337,42 +356,88 @@ export default function MealPlanDetailPage() {
     setSlots((slotsData ?? []) as SlotWithRecipe[]);
   }
 
-  // Add recipe to slot
+  // Add recipe to slot — uses API route for approvers (bypasses RLS)
   async function addRecipeToSlot(recipeId: string) {
     if (!activeCell) return;
     setSaving(true);
     setMessage("");
 
-    const { error } = await supabase.from("meal_plan_slots").insert({
-      meal_plan_id: planId,
-      recipe_id: recipeId,
-      plan_date: activeCell.date,
-      meal_type: activeCell.mealType,
-      servings: 1,
-      sort_order: 0,
-    });
-
-    if (error) {
-      setMessage("Error adding recipe: " + error.message);
+    if (isApprover && !isOwner) {
+      try {
+        const res = await fetch(`/api/approval-plans/${planId}/slots`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            recipe_id: recipeId,
+            plan_date: activeCell.date,
+            meal_type: activeCell.mealType,
+            servings: 1,
+            sort_order: 0,
+          }),
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          setMessage("Error adding recipe: " + (err.error ?? "Unknown error"));
+        } else {
+          setMessage(locale === "zh" ? "已添加食谱！" : "Recipe added!");
+          await refetchSlots();
+          setActiveCell(null);
+        }
+      } catch (e: any) {
+        setMessage("Error adding recipe: " + e.message);
+      }
     } else {
-      setMessage("Recipe added!");
-      await refetchSlots();
-      setActiveCell(null);
+      const { error } = await supabase.from("meal_plan_slots").insert({
+        meal_plan_id: planId,
+        recipe_id: recipeId,
+        plan_date: activeCell.date,
+        meal_type: activeCell.mealType,
+        servings: 1,
+        sort_order: 0,
+      });
+      if (error) {
+        setMessage("Error adding recipe: " + error.message);
+      } else {
+        setMessage(locale === "zh" ? "已添加食谱！" : "Recipe added!");
+        await refetchSlots();
+        setActiveCell(null);
+      }
     }
     setSaving(false);
   }
 
-  // Remove recipe from slot
+  // Remove recipe from slot — uses API route for approvers
   async function removeRecipeFromSlot(slotId: string) {
     setSaving(true);
     setMessage("");
-    const { error } = await supabase.from("meal_plan_slots").delete().eq("id", slotId);
-    if (error) {
-      setMessage("Error removing recipe: " + error.message);
+
+    if (isApprover && !isOwner) {
+      try {
+        const res = await fetch(`/api/approval-plans/${planId}/slots`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slot_id: slotId }),
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          setMessage("Error removing recipe: " + (err.error ?? "Unknown error"));
+        } else {
+          setMessage(locale === "zh" ? "已移除食谱！" : "Recipe removed!");
+          await refetchSlots();
+          setHoveredSlot(null);
+        }
+      } catch (e: any) {
+        setMessage("Error removing recipe: " + e.message);
+      }
     } else {
-      setMessage("Recipe removed!");
-      await refetchSlots();
-      setHoveredSlot(null);
+      const { error } = await supabase.from("meal_plan_slots").delete().eq("id", slotId);
+      if (error) {
+        setMessage("Error removing recipe: " + error.message);
+      } else {
+        setMessage(locale === "zh" ? "已移除食谱！" : "Recipe removed!");
+        await refetchSlots();
+        setHoveredSlot(null);
+      }
     }
     setSaving(false);
   }
@@ -541,14 +606,74 @@ export default function MealPlanDetailPage() {
     } else {
       delete updated[cellKey];
     }
-    const { error } = await supabase
-      .from("meal_plans")
-      .update({ meal_remarks: updated })
-      .eq("id", planId);
-    if (error) { setMessage("Error saving remark: " + error.message); }
+
+    let saveError: string | null = null;
+
+    if (isApprover && !isOwner) {
+      // Approver: use API route to bypass RLS
+      try {
+        const res = await fetch(`/api/approval-plans/${planId}/update`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ meal_remarks: updated }),
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          saveError = err.error ?? "Unknown error";
+        }
+      } catch (e: any) {
+        saveError = e.message;
+      }
+    } else {
+      const { error } = await supabase
+        .from("meal_plans")
+        .update({ meal_remarks: updated })
+        .eq("id", planId);
+      if (error) saveError = error.message;
+    }
+
+    if (saveError) { setMessage("Error saving remark: " + saveError); }
     else { setMealRemarks(updated); setPlan({ ...plan!, meal_remarks: updated }); }
     setEditingRemarkKey(null);
     setRemarkDraft("");
+    setSaving(false);
+  }
+
+  // ── Overall Plan Notes ─────────────────────────────────────
+  async function saveOverallNotes() {
+    setSaving(true);
+    const newNotes = notesDraft.trim() || null;
+    let saveError: string | null = null;
+
+    if (isApprover && !isOwner) {
+      try {
+        const res = await fetch(`/api/approval-plans/${planId}/update`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ notes: newNotes }),
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          saveError = err.error ?? "Unknown error";
+        }
+      } catch (e: any) {
+        saveError = e.message;
+      }
+    } else {
+      const { error } = await supabase
+        .from("meal_plans")
+        .update({ notes: newNotes })
+        .eq("id", planId);
+      if (error) saveError = error.message;
+    }
+
+    if (saveError) {
+      setMessage("Error saving notes: " + saveError);
+    } else {
+      setPlan({ ...plan!, notes: newNotes });
+      setMessage(locale === "zh" ? "备注已保存！" : "Notes saved!");
+    }
+    setEditingNotes(false);
     setSaving(false);
   }
 
@@ -592,11 +717,31 @@ export default function MealPlanDetailPage() {
 
   async function updateApprovalStatus(status: "approved" | "changes_requested") {
     setSaving(true); setMessage("");
-    const { error } = await supabase
-      .from("meal_plans")
-      .update({ approval_status: status })
-      .eq("id", planId);
-    if (error) { setMessage("Error: " + error.message); }
+    let saveError: string | null = null;
+
+    if (isApprover && !isOwner) {
+      try {
+        const res = await fetch(`/api/approval-plans/${planId}/update`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ approval_status: status }),
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          saveError = err.error ?? "Unknown error";
+        }
+      } catch (e: any) {
+        saveError = e.message;
+      }
+    } else {
+      const { error } = await supabase
+        .from("meal_plans")
+        .update({ approval_status: status })
+        .eq("id", planId);
+      if (error) saveError = error.message;
+    }
+
+    if (saveError) { setMessage("Error: " + saveError); }
     else {
       setPlan({ ...plan!, approval_status: status });
       setMessage(status === "approved"
@@ -926,6 +1071,51 @@ export default function MealPlanDetailPage() {
           </div>
         )}
 
+        {/* Overall Plan Notes / Remarks */}
+        {canEdit && (
+          <div className="mb-4 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                {locale === "zh" ? "整体备注" : "Overall Notes"}
+              </span>
+              {!editingNotes && (
+                <button
+                  onClick={() => { setNotesDraft(plan.notes ?? ""); setEditingNotes(true); }}
+                  className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 font-medium transition-colors"
+                >
+                  {plan.notes ? (locale === "zh" ? "编辑" : "Edit") : (locale === "zh" ? "+ 添加备注" : "+ Add Notes")}
+                </button>
+              )}
+            </div>
+            {editingNotes ? (
+              <div className="space-y-2">
+                <textarea
+                  autoFocus
+                  value={notesDraft}
+                  onChange={(e) => setNotesDraft(e.target.value)}
+                  rows={3}
+                  className="w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none"
+                  placeholder={locale === "zh" ? "添加关于此膳食计划的备注…" : "Add notes about this meal plan…"}
+                />
+                <div className="flex gap-2">
+                  <button onClick={saveOverallNotes} disabled={saving}
+                    className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors">
+                    {locale === "zh" ? "保存" : "Save"}
+                  </button>
+                  <button onClick={() => { setEditingNotes(false); setNotesDraft(""); }}
+                    className="rounded-lg bg-zinc-200 dark:bg-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition-colors">
+                    {locale === "zh" ? "取消" : "Cancel"}
+                  </button>
+                </div>
+              </div>
+            ) : plan.notes ? (
+              <p className="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed">{plan.notes}</p>
+            ) : (
+              <p className="text-xs text-zinc-400 italic">{locale === "zh" ? "暂无备注" : "No notes yet"}</p>
+            )}
+          </div>
+        )}
+
         {/* Action Buttons */}
         <div className="mb-6 flex flex-wrap gap-2">
           {plan.status !== "finalized" && (
@@ -1041,7 +1231,7 @@ export default function MealPlanDetailPage() {
           )}
 
           {/* Approver actions */}
-          {isApprover && plan.approval_status === "pending_approval" && (
+          {isApprover && (
             <>
               <button onClick={() => updateApprovalStatus("approved")} disabled={saving}
                 className="rounded-lg bg-green-600 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center gap-1.5">
@@ -1277,7 +1467,7 @@ export default function MealPlanDetailPage() {
                                   {locale === "zh" ? "取消" : "Cancel"}
                                 </button>
                               </div>
-                            ) : isApprover && plan.approval_status === "pending_approval" ? (
+                            ) : isApprover ? (
                               <button onClick={() => { setEditingDayComment(date); setDayCommentDraft(""); }}
                                 className="text-[10px] text-indigo-500 hover:text-indigo-700 font-medium transition-colors">
                                 + {locale === "zh" ? "添加评论" : "Add Comment"}
@@ -1451,7 +1641,7 @@ export default function MealPlanDetailPage() {
                     ) : (
                       <p className="text-[11px] text-zinc-400 italic">{locale === "zh" ? "暂无评论" : "No comments yet"}</p>
                     )}
-                    {isApprover && plan.approval_status === "pending_approval" && (
+                    {isApprover && (
                       editingDayComment === date ? (
                         <div className="mt-2 flex gap-1 items-end">
                           <textarea
