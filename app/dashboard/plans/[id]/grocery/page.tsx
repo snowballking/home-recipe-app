@@ -286,26 +286,63 @@ export default function GroceryListPage() {
     loadData();
   }, [planId, supabase, router]);
 
-  // Generate grocery list from meal plan
+  // Extract all raw ingredients from meal plan slots
+  function extractRawIngredients(mealSlots: SlotWithRecipe[]): { name: string; quantity: string; unit: string }[] {
+    const raw: { name: string; quantity: string; unit: string }[] = [];
+    mealSlots.forEach((slot) => {
+      if (!slot.recipes?.ingredients) return;
+      slot.recipes.ingredients.forEach((ing: Ingredient) => {
+        raw.push({ name: ing.name, quantity: ing.quantity, unit: ing.unit });
+      });
+    });
+    return raw;
+  }
+
+  // Generate grocery list — uses Gemini AI for smart consolidation, falls back to local logic
   async function generateGroceryList(mealPlan: MealPlan, mealSlots: SlotWithRecipe[]) {
-    // Consolidate ingredients
-    const consolidated = consolidateIngredients(mealSlots);
+    const rawIngredients = extractRawIngredients(mealSlots);
+
+    // Try AI consolidation first
+    let consolidated: ConsolidatedIngredient[] = [];
+    let usedAI = false;
+
+    try {
+      setMessage("🤖 AI is consolidating your grocery list…");
+      const res = await fetch("/api/grocery-ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ingredients: rawIngredients }),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json.items && json.items.length > 0) {
+          consolidated = json.items.map((item: any) => ({
+            name: item.name,
+            quantity: item.quantity,
+            unit: item.unit,
+            category: item.category as GroceryCategory,
+          }));
+          usedAI = true;
+        }
+      } else {
+        const err = await res.json().catch(() => ({ error: "Unknown" }));
+        console.warn("[grocery] AI consolidation failed:", err.error);
+      }
+    } catch (err) {
+      console.warn("[grocery] AI consolidation error:", err);
+    }
+
+    // Fallback to local consolidation if AI didn't work
+    if (!usedAI) {
+      consolidated = consolidateIngredients(mealSlots);
+    }
 
     // Group by category
     const byCategory: Record<GroceryCategory, ConsolidatedIngredient[]> = {
-      produce: [],
-      dairy: [],
-      meat: [],
-      seafood: [],
-      bakery: [],
-      frozen: [],
-      canned: [],
-      condiments: [],
-      spices: [],
-      grains: [],
-      snacks: [],
-      beverages: [],
-      other: [],
+      produce: [], dairy: [], meat: [], seafood: [], bakery: [],
+      frozen: [], canned: [], condiments: [], spices: [], grains: [],
+      snacks: [], beverages: [], other: [],
     };
 
     consolidated.forEach((item) => {
@@ -364,7 +401,9 @@ export default function GroceryListPage() {
       setGroceryItems([]);
     }
 
-    setMessage("Grocery list generated successfully!");
+    setMessage(usedAI
+      ? "✨ Grocery list generated with AI consolidation!"
+      : "Grocery list generated successfully!");
   }
 
   // Toggle item checked status
@@ -610,9 +649,16 @@ export default function GroceryListPage() {
           <button
             onClick={regenerateList}
             disabled={saving}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors flex items-center gap-1.5"
           >
-            Regenerate List
+            {saving ? (
+              <>
+                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                AI Consolidating…
+              </>
+            ) : (
+              <>✨ Regenerate with AI</>
+            )}
           </button>
 
           <button
