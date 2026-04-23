@@ -364,7 +364,7 @@ export default function MealPlanDetailPage() {
 
     if (isApprover && !isOwner) {
       try {
-        const res = await fetch(`/api/approval-plans/${planId}/slots`, {
+        const res = await fetch(`/api/approval-plans/${planId}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -413,7 +413,7 @@ export default function MealPlanDetailPage() {
 
     if (isApprover && !isOwner) {
       try {
-        const res = await fetch(`/api/approval-plans/${planId}/slots`, {
+        const res = await fetch(`/api/approval-plans/${planId}`, {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ slot_id: slotId }),
@@ -612,7 +612,7 @@ export default function MealPlanDetailPage() {
     if (isApprover && !isOwner) {
       // Approver: use API route to bypass RLS
       try {
-        const res = await fetch(`/api/approval-plans/${planId}/update`, {
+        const res = await fetch(`/api/approval-plans/${planId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ meal_remarks: updated }),
@@ -647,7 +647,7 @@ export default function MealPlanDetailPage() {
 
     if (isApprover && !isOwner) {
       try {
-        const res = await fetch(`/api/approval-plans/${planId}/update`, {
+        const res = await fetch(`/api/approval-plans/${planId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ notes: newNotes }),
@@ -721,7 +721,7 @@ export default function MealPlanDetailPage() {
 
     if (isApprover && !isOwner) {
       try {
-        const res = await fetch(`/api/approval-plans/${planId}/update`, {
+        const res = await fetch(`/api/approval-plans/${planId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ approval_status: status }),
