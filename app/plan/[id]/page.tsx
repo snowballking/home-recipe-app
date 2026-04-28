@@ -130,6 +130,14 @@ export default async function PublicMealPlanPage({
           </div>
 
           {plan.description && <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">{plan.description}</p>}
+
+          {/* Overall Plan Notes */}
+          {plan.notes && (
+            <div className="mt-4 rounded-lg border border-amber-200 dark:border-amber-800/50 bg-amber-50/50 dark:bg-amber-950/20 p-3">
+              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider mb-1">Notes</p>
+              <p className="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed">{plan.notes}</p>
+            </div>
+          )}
         </div>
 
         {/* ────────── DESKTOP: Table (hidden on mobile) ────────── */}
@@ -159,6 +167,8 @@ export default async function PublicMealPlanPage({
 
                     {mealTypes.map((mealType) => {
                       const cellSlots = getSlotsForCell(slots, date, mealType);
+                      const remarkKey = `${date}_${mealType}`;
+                      const remark = plan.meal_remarks?.[remarkKey];
                       return (
                         <td key={`${date}-${mealType}`} className="px-3 py-3 text-sm border-r border-zinc-200 dark:border-zinc-800 align-top min-w-[140px]">
                           {cellSlots.length > 0 ? (
@@ -167,6 +177,11 @@ export default async function PublicMealPlanPage({
                             </div>
                           ) : (
                             <div className="text-xs text-zinc-400">—</div>
+                          )}
+                          {remark && (
+                            <div className="mt-1.5 rounded bg-amber-50 dark:bg-amber-900/20 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-400 leading-snug">
+                              <span className="font-medium">Note: </span>{remark}
+                            </div>
                           )}
                         </td>
                       );
@@ -206,6 +221,8 @@ export default async function PublicMealPlanPage({
                 <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
                   {mealTypes.map((mealType) => {
                     const cellSlots = getSlotsForCell(slots, date, mealType);
+                    const remarkKey = `${date}_${mealType}`;
+                    const remark = plan.meal_remarks?.[remarkKey];
                     return (
                       <div key={mealType} className="px-4 py-3">
                         <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2 block">
@@ -216,6 +233,11 @@ export default async function PublicMealPlanPage({
                         ) : (
                           <div className="space-y-2">
                             {cellSlots.map((slot) => <DishChip key={slot.id} slot={slot} />)}
+                          </div>
+                        )}
+                        {remark && (
+                          <div className="mt-2 rounded bg-amber-50 dark:bg-amber-900/20 px-2 py-1 text-xs text-amber-700 dark:text-amber-400 leading-snug">
+                            <span className="font-medium">Note: </span>{remark}
                           </div>
                         )}
                       </div>
