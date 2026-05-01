@@ -467,7 +467,8 @@ export default function EditRecipePage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-4">
+          {/* Desktop buttons */}
+          <div className="hidden sm:flex items-center justify-between pt-4">
             <div className="flex gap-3">
               <button type="submit" disabled={saving}
                 className="rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
@@ -483,7 +484,38 @@ export default function EditRecipePage() {
               Delete Recipe
             </button>
           </div>
+
+          {/* Mobile buttons — stacked layout */}
+          <div className="sm:hidden flex flex-col gap-3 pt-4 pb-24">
+            <button type="submit" disabled={saving}
+              className="w-full rounded-lg bg-indigo-600 px-6 py-3 text-sm font-medium text-white hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-50">
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
+            <button type="button" onClick={() => router.back()}
+              className="w-full rounded-lg border border-zinc-300 bg-white px-6 py-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50 active:bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+              Cancel
+            </button>
+            <button type="button" onClick={handleDelete}
+              className="w-full rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 hover:bg-red-100 active:bg-red-200 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
+              Delete Recipe
+            </button>
+          </div>
         </form>
+
+        {/* Mobile sticky save bar — always visible at bottom */}
+        <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-zinc-200 bg-white/95 backdrop-blur-sm px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900/95" style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => {
+              const form = document.querySelector("form");
+              if (form) form.requestSubmit();
+            }}
+            className="w-full rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-50 transition-colors"
+          >
+            {saving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
       </div>
     </div>
   );
