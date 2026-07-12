@@ -1,10 +1,16 @@
 import { NextRequest } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 // POST /api/estimate-nutrition
 // Accepts: { ingredients: [...], servings: number }
 // Returns: { calories_per_serving, protein_grams, carbs_grams, fat_grams }
 
 export async function POST(request: NextRequest) {
+  // Require a signed-in user (prevents anonymous use of the Gemini API)
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
   const geminiKey = process.env.GEMINI_API_KEY;
 
   if (!geminiKey) {

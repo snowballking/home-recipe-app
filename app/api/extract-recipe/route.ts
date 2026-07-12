@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 import { detectPlatform, extractYouTubeVideoId } from "@/lib/extract/detect-platform";
 import { fetchWebsiteContent, fetchPageImage } from "@/lib/extract/website";
 import { extractWithHaiku, extractFromYouTubeVideo, normaliseIngredientUnits } from "@/lib/extract/ai-extract";
@@ -10,7 +11,42 @@ import { extractWithHaiku, extractFromYouTubeVideo, normaliseIngredientUnits } f
 //   YouTube  → Gemini 2.5 Flash Lite (native video understanding)
 //   Website / RedNote / Instagram → Jina Reader text → Claude Haiku 4.5
 
+/** Reject URLs that point at private/internal networks (SSRF protection). */
+function isSafePublicUrl(raw: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
+  const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (host === "localhost" || host.endsWith(".local") || host.endsWith(".internal")) return false;
+  // IPv6 loopback / link-local / unique-local (bracketed hosts always contain ":")
+  if (host.includes(":") && (host === "::1" || host.startsWith("fe80:") || host.startsWith("fc") || host.startsWith("fd"))) return false;
+  // IPv4 private / reserved ranges
+  const ipv4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipv4) {
+    const a = Number(ipv4[1]);
+    const b = Number(ipv4[2]);
+    if (
+      a === 0 || a === 10 || a === 127 ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168)
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export async function POST(request: NextRequest) {
+  // Require a signed-in user (prevents anonymous use of the AI APIs)
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
 
@@ -35,6 +71,10 @@ export async function POST(request: NextRequest) {
       { error: "Please provide a URL." },
       { status: 400 }
     );
+  }
+
+  if (!isSafePublicUrl(url)) {
+    return Response.json({ error: "Invalid URL." }, { status: 400 });
   }
 
   let platform: ReturnType<typeof detectPlatform>;

@@ -77,6 +77,14 @@ export async function POST(
   const body = await request.json();
   const { recipe_id, plan_date, meal_type, servings = 1, sort_order = 0 } = body;
 
+  const VALID_MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"];
+  if (!recipe_id || !plan_date || !VALID_MEAL_TYPES.includes(meal_type)) {
+    return Response.json(
+      { error: "recipe_id, plan_date and a valid meal_type are required." },
+      { status: 400 }
+    );
+  }
+
   const { data, error } = await admin.from("meal_plan_slots").insert({
     meal_plan_id: planId,
     recipe_id,
@@ -147,6 +155,23 @@ export async function PATCH(
 
   if (Object.keys(updateData).length === 0) {
     return Response.json({ error: "No valid fields to update" }, { status: 400 });
+  }
+
+  // Validate field values before writing with the service-role client
+  const VALID_STATUSES = ["pending_approval", "approved", "changes_requested"];
+  if ("approval_status" in updateData && !VALID_STATUSES.includes(updateData.approval_status)) {
+    return Response.json({ error: "Invalid approval_status." }, { status: 400 });
+  }
+  if ("notes" in updateData && updateData.notes !== null && typeof updateData.notes !== "string") {
+    return Response.json({ error: "notes must be a string." }, { status: 400 });
+  }
+  if (
+    "meal_remarks" in updateData &&
+    (typeof updateData.meal_remarks !== "object" ||
+      updateData.meal_remarks === null ||
+      Array.isArray(updateData.meal_remarks))
+  ) {
+    return Response.json({ error: "meal_remarks must be an object." }, { status: 400 });
   }
 
   const { data, error } = await admin
