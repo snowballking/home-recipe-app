@@ -2,7 +2,7 @@
 
 **Owner:** Nathan · **Capacity:** 25 h/week (~300 h over 12 weeks) · **Budget:** S$300–1,000/month
 **Goal:** Soft launch as a social meal-planning app in week 12, with grocery fulfillment partnerships signed and ready for a month-4 pilot.
-**Last updated:** 13 Jul 2026 (iteration 7)
+**Last updated:** 13 Jul 2026 (iteration 13)
 
 ---
 
@@ -39,6 +39,7 @@ Rule: if a week overruns, cut scope — never stack into next week.
 - **Deliverable:** step-by-step guide → `SETUP_CLAUDE_CODE.md` (done).
 
 ### Weeks 1–2 — Social layer + content licensing (moved up, iter. 5)
+- **Deliverable — app name + domain (iter. 8):** shortlist names, then check in one pass before committing: domain available (.com + .sg), Instagram/RedNote/TikTok handles free, no ACRA name clash (bizfile.gov.sg), no obvious SG/regional trademark conflict (IPOS search). Register the domain (~S$15–60/yr) and grab the social handles immediately — handles cost nothing and disappear fast. Chosen name feeds the ACRA registration in weeks 5–6.
 - Chef profile upgrade: bio, specialty/cuisine tags, external links (IG/YouTube), recipe + follower showcase, "like/follow chef" surfaced prominently. (Follow, comments, ratings already exist — this is surfacing, not rebuilding.)
 - User profile upgrade: dietary targets, saved recipes showcase, shared meal plans.
 - Recipe comments polish: threading/photos already exist — improve visibility and engagement prompts.
@@ -51,6 +52,8 @@ Rule: if a week overruns, cut scope — never stack into next week.
 - Schema migration: add micronutrient columns (or JSONB) to recipes.
 - Update estimate-nutrition route to return micronutrients per serving.
 - Finish ingredient unit normalization (audit existing recipes, enforce canonical metric units).
+- **Traditional Chinese support (iter. 10 — decided: store in DB, translate at write time, not on demand).** Add `_zh_hant` columns mirroring existing `_zh` fields; AI-translate targeting "Traditional Chinese (Hong Kong)" (correct HK vocabulary — not mechanical character conversion); batch-backfill existing recipes; extend language switcher to EN / 简体 / 繁體. Rationale: recipes are read-heavy (translate once vs per-view), instant loads, chef-editable translations, HK SEO, PWA offline.
+- **Translation model (iter. 11 — decided: native Chinese AI model).** Use Qwen or DeepSeek (both have cheap, internationally accessible APIs) for EN→中文 translation — stronger cultural/culinary nuance than US models. Selection by bake-off: translate 5 sample recipes with Qwen, DeepSeek and Gemini (baseline); native-speaker judgment for 简体, HK reader for 繁體 (mainland models must prove HK vocabulary, e.g. 薯仔 not 土豆). Wire behind a swappable `translate()` provider function, same pattern as image generation. Winner also becomes the candidate for RedNote extraction (weeks 7–8).
 - Meal-plan goal descriptions: short "how this plan gets you to your target" field on shared plans; visible on Market page.
 - **Informal chef soundings (no paperwork):** casual conversations with 3–5 favourite recipe owners — show them the new profile pages, gauge interest, warm the pipeline for formal outreach in weeks 7–8.
 - Recruit 10–20 beta users (family, friends, the stall owners' customers).
@@ -58,6 +61,7 @@ Rule: if a week overruns, cut scope — never stack into next week.
 
 ### Weeks 5–6 — Company formation
 - ACRA incorporation (~S$315 one-time; Pte Ltd).
+- **Founder IP assignment (iter. 12):** one-page document transferring the app, GitHub repo, domain and brand from Nathan personally to the Pte Ltd. (Decided: build under personal accounts until incorporation — ownership of AI-assisted code follows the author, not the subscription; include this doc in the pre-launch legal consult.)
 - Corporate accounts for Vercel, Supabase, Google AI, Anthropic; rotate all API keys to company-owned.
 - Terms & Conditions + Privacy Policy (PDPA: consent, purpose limitation, export/delete rights, breach process).
 - Closed beta goes live; weekly feedback loop starts.
@@ -67,6 +71,14 @@ Rule: if a week overruns, cut scope — never stack into next week.
 - In-app chat assistant: Claude API grounded in app FAQ/how-to content. (Evaluated vs openclaw/off-the-shelf — build simple first; swap later if needed.)
 - Analytics (PostHog free tier) + error monitoring (Sentry free tier).
 - RedNote/Instagram extraction accuracy pass; evaluate a Chinese-language model (e.g. Qwen) for RedNote if current pipeline underperforms.
+- **Recipe variations / forking — "Make it your own" (iter. 13; full spec below, build in weeks 7–8):**
+  - **Decision:** materialized fork (full recipe-row copy), NOT a delta-overlay table. Rationale: an overlay table would force base+overlay merging into every consumer of recipe data (nutrition, grocery generation, meal-plan slots, translation, search) — a permanent complexity tax. Full copy = zero downstream changes.
+  - **Schema (migration 025):** reuse existing `recipes.original_recipe_id` as the fork pointer (immediate parent; fork chains allowed). Add `variation_note TEXT` (user's own words: what changed and why — required, prompt if empty) and `variation_diff JSONB` (auto-computed at save: ingredients added/removed/changed, steps changed, servings changed). Index on `original_recipe_id`; FK `ON DELETE SET NULL`.
+  - **Fork flow:** button on public recipe pages (logged-in users; hidden on own recipes) → prefills the edit form with a copy (no DB insert until save) → `user_id` = forker, `is_public = false` (private by default, per IP policy), counters reset to 0, **`hero_image_url` NOT copied** (photo belongs to the original author — AI placeholder or own photo instead), `_zh`/`_zh_hant` fields copied then re-translated for any edited field → user edits + writes variation_note → save computes diff and inserts.
+  - **Display:** original page shows "Variations (N)" listing public forks; fork page shows "Based on [author]'s [title]" banner linking the original + a "What changed" panel (note + human-readable diff); listing cards get a small "variation" tag.
+  - **Duplicate-import nudge (ships together):** at import, if the `source_url` already exists (public or own) → suggest forking the existing recipe instead, with "continue anyway" fallback. Never hard-block — classic dishes have many legitimate versions.
+  - **Edge cases:** private originals not forkable (RLS hides them); deleted original → fork survives, banner degrades; forking the same recipe twice allowed; forks are ordinary rows so existing RLS applies; server logic goes into existing route files only (Vercel constraint).
+  - Fuzzy same-dish detection (pgvector embeddings) deliberately deferred to month 4+.
 - **Formal chef outreach (post-ACRA):** send outreach message + creator agreement to the 3–5 warmed-up chefs; target 3 signed creators before soft launch. Signed agreement becomes the standard chef-onboarding flow.
 - **BD track:** draft one-page supply agreement (now possible — company exists).
 
@@ -89,6 +101,7 @@ Rule: if a week overruns, cut scope — never stack into next week.
 3. Supermarket BD (FairPrice/Cold Storage/Sheng Siong have no public retail APIs — this is a partnership negotiation, sequenced after pilot volume data exists).
 4. Ryan's Grocery-tier premium suppliers + chef advertising once traffic justifies.
 5. Native apps only if PWA metrics show demand (push notifications are the usual trigger).
+6. **Paid acquisition — Google Ads + Meta Ads (iter. 9).** Start only after: (a) company incorporated (business ad accounts run under the Pte Ltd), (b) soft-launch data shows people who sign up actually stay (retention/onboarding proven — otherwise ads pour water into a leaky bucket), (c) conversion tracking live (Meta Pixel + Google tag, added to the PDPA consent banner — tracking pixels are personal data). Start small: S$10–20/day test campaigns targeting SG families + gym-goers, measure cost per signup, scale only what pays back. Ad spend is on top of the S$300–1,000 ops budget.
 
 ---
 
@@ -121,5 +134,5 @@ Vercel Pro ~S$27 · Supabase Pro ~S$34 · AI APIs (Gemini + Claude) S$30–150 �
 1. ~~Nutrition database~~ → **DECIDED: HPB primary, USDA fallback.**
 2. Beta cohort: who are the first 10 — can stall owners refer regulars?
 3. Chef supply: how many chefs/recipe owners committed to posting at launch? Which 5 to approach first with the creator agreement?
-4. Company name + ACRA timing (self-file vs corporate service provider ~S$300–600).
-5. HK expansion: out of scope for weeks 1–12; revisit after SG soft launch (note: HK has separate PDPO privacy rules).
+4. ~~Company name + ACRA timing~~ → **DECIDED: Nathan self-files (he's an accountant + corp sec — no service provider needed). Timing stays weeks 5–6 to maximize the SUTE start-up tax exemption years against actual revenue.** Company name still pending the naming exercise.
+5. HK expansion: trilingual content (EN/简体/繁體) ships in weeks 3–4 so the product is HK-ready from day one; HK *market entry* (PDPO privacy compliance, local suppliers, marketing) stays post-SG-launch.
