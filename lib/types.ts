@@ -11,12 +11,28 @@ export interface HouseholdMember {
   age_group: AgeGroup;
 }
 
+// Where a recipe's hero image came from. Publishing a recipe publicly
+// requires 'user_upload' or 'ai_generated' (or a licensed chef account) —
+// 'imported' photos belong to the original source and stay private.
+export type ImageSource = "user_upload" | "ai_generated" | "imported";
+
+export interface ExternalLinks {
+  instagram?: string;
+  youtube?: string;
+  tiktok?: string;
+  website?: string;
+}
+
 export interface Profile {
   id: string;
   displayname: string | null;
   bio: string | null;
   avatar_url: string | null;
   household_members: HouseholdMember[];
+  specialties: string[];
+  external_links: ExternalLinks;
+  dietary_preferences: string[];
+  is_chef: boolean;
   follower_count: number;
   following_count: number;
   recipe_count: number;
@@ -61,6 +77,7 @@ export interface Recipe {
   carbs_grams: number | null;
   fat_grams: number | null;
   hero_image_url: string | null;
+  image_source: ImageSource | null;
   source_url: string | null;
   is_public: boolean;
   original_recipe_id: string | null;
@@ -236,7 +253,26 @@ export interface RecipeSave {
   user_id: string;
   recipe_id: string;
   created_at: string;
+  recipes?: Recipe;
 }
+
+export interface ContentReport {
+  id: string;
+  recipe_id: string;
+  reporter_id: string | null;
+  reason: "copyright" | "inappropriate" | "spam" | "other";
+  details: string | null;
+  status: "open" | "resolved" | "dismissed";
+  created_at: string;
+  recipes?: Recipe;
+}
+
+export const REPORT_REASONS = [
+  { value: "copyright", label: "Copyright / this is my content" },
+  { value: "inappropriate", label: "Inappropriate content" },
+  { value: "spam", label: "Spam or misleading" },
+  { value: "other", label: "Other" },
+] as const;
 
 export interface RecipeFormData {
   title: string;
