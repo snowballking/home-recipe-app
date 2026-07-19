@@ -11,6 +11,7 @@ interface AdminUserRow {
   displayname: string | null;
   is_approved: boolean;
   is_admin: boolean;
+  is_chef: boolean;
   created_at: string;
 }
 
@@ -64,6 +65,24 @@ export default function AdminUsersPage() {
     setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, is_approved: true } : u)));
   }
 
+  async function toggleChef(userId: string, currentlyChef: boolean) {
+    if (
+      !currentlyChef &&
+      !window.confirm(
+        "Mark this user as a licensed chef? Chef accounts can publish imported content — only grant this after a signed creator agreement."
+      )
+    )
+      return;
+    setBusyId(userId);
+    const { error: err } = await supabase
+      .from("profiles")
+      .update({ is_chef: !currentlyChef, updated_at: new Date().toISOString() })
+      .eq("id", userId);
+    setBusyId(null);
+    if (err) { alert("Chef update failed: " + err.message); return; }
+    setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, is_chef: !currentlyChef } : u)));
+  }
+
   async function revoke(userId: string) {
     if (!window.confirm("Revoke this user's approval? They will be locked out until re-approved.")) return;
     setBusyId(userId);
@@ -84,12 +103,22 @@ export default function AdminUsersPage() {
       <NavBar />
 
       <div className="mx-auto max-w-4xl px-4 py-8">
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-          User Approvals
-        </h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          Admin panel — approve or revoke access for users who have signed up.
-        </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+              User Approvals
+            </h1>
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              Admin panel — approve or revoke access for users who have signed up.
+            </p>
+          </div>
+          <a
+            href="/admin/reports"
+            className="shrink-0 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+          >
+            ⚑ Content Reports
+          </a>
+        </div>
 
         {error && (
           <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
@@ -133,6 +162,7 @@ export default function AdminUsersPage() {
                     user={u}
                     busy={busyId === u.id}
                     onRevoke={u.is_admin ? undefined : () => revoke(u.id)}
+                    onToggleChef={() => toggleChef(u.id, u.is_chef)}
                   />
                 ))}
               </ul>
@@ -149,11 +179,13 @@ function UserRow({
   busy,
   onApprove,
   onRevoke,
+  onToggleChef,
 }: {
   user: AdminUserRow;
   busy: boolean;
   onApprove?: () => void;
   onRevoke?: () => void;
+  onToggleChef?: () => void;
 }) {
   return (
     <li className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
@@ -167,6 +199,11 @@ function UserRow({
               ADMIN
             </span>
           )}
+          {user.is_chef && (
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+              👨‍🍳 CHEF
+            </span>
+          )}
         </div>
         <p className="truncate text-xs text-zinc-500">{user.email}</p>
         <p className="mt-0.5 text-[11px] text-zinc-400">
@@ -174,6 +211,15 @@ function UserRow({
         </p>
       </div>
       <div className="flex shrink-0 gap-2">
+        {onToggleChef && (
+          <button
+            onClick={onToggleChef}
+            disabled={busy}
+            className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+          >
+            {busy ? "..." : user.is_chef ? "Remove Chef" : "Make Chef"}
+          </button>
+        )}
         {onApprove && (
           <button
             onClick={onApprove}
