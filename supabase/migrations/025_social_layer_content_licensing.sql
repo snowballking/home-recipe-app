@@ -94,3 +94,4 @@ end;
 $$;
 
 grant execute on function public.admin_list_users() to authenticated;
+revoke execute on function public.admin_list_users() from public, anon;
