@@ -133,6 +133,9 @@ const translations = {
   "duration.3_weeks": { en: "3 Weeks", zh: "3 周" },
   "duration.1_month": { en: "1 Month", zh: "1 个月" },
 
+  // ── Recipe Card ─────────────────────────────────────
+  "recipe_card.ai_image": { en: "AI image", zh: "AI 图片" },
+
   // ── Common ──────────────────────────────────────────
   "common.save": { en: "Save", zh: "保存" },
   "common.cancel": { en: "Cancel", zh: "取消" },

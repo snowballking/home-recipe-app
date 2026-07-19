@@ -5,6 +5,7 @@ import { NavBar } from "@/app/components/nav-bar";
 import { CommentSection } from "@/app/components/comment-section";
 import { SaveRecipeButton } from "@/app/components/save-recipe-button";
 import { FollowButton } from "@/app/components/follow-button";
+import { ReportRecipeButton } from "@/app/components/report-recipe-button";
 import { RecipeRating } from "./recipe-rating";
 import { RecipeTitle, RecipeDescription, RecipeImportantNote, RecipeIngredients, RecipeSteps } from "./recipe-content";
 import type { Recipe } from "@/lib/types";
@@ -74,6 +75,23 @@ export default async function RecipeDetailPage({ params }: PageProps) {
                 ⭐ User&apos;s Original
               </span>
             )}
+            {typedRecipe.image_source === "ai_generated" && (
+              <span className="absolute bottom-3 left-3 rounded-full bg-indigo-600/90 px-3 py-1 text-xs font-semibold text-white shadow">
+                ✨ AI-generated image
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Owner prompt: replace AI placeholder with a real photo */}
+        {isOwner && typedRecipe.image_source === "ai_generated" && (
+          <div className="mb-6 -mt-2 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 dark:border-indigo-800 dark:bg-indigo-950/40">
+            <Link
+              href={`/dashboard/recipes/${typedRecipe.id}/edit`}
+              className="text-sm font-medium text-indigo-700 hover:underline dark:text-indigo-300"
+            >
+              📷 Cooked it? Replace the AI image with a photo of your own dish →
+            </Link>
           </div>
         )}
 
@@ -182,6 +200,14 @@ export default async function RecipeDetailPage({ params }: PageProps) {
             recipeId={typedRecipe.id}
             saveCount={typedRecipe.save_count}
           />
+          <div className="h-6 w-px bg-zinc-200 dark:bg-zinc-700" />
+          <a
+            href="#comments"
+            className="text-sm text-zinc-600 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-400"
+          >
+            💬 {typedRecipe.comment_count}{" "}
+            {typedRecipe.comment_count === 1 ? "comment" : "comments"}
+          </a>
         </div>
 
         {/* Nutrition Panel */}
@@ -288,11 +314,20 @@ export default async function RecipeDetailPage({ params }: PageProps) {
         )}
 
         {/* Comments */}
-        <div className="mt-8 border-t border-zinc-200 pt-8 dark:border-zinc-800">
+        <div id="comments" className="mt-8 border-t border-zinc-200 pt-8 dark:border-zinc-800">
           <CommentSection
             recipeId={typedRecipe.id}
             recipeOwnerId={typedRecipe.user_id}
           />
+        </div>
+
+        {/* Report content (takedown) */}
+        <div className="mt-8 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+          <p className="mb-1 text-xs text-zinc-400">
+            Believe this recipe infringes your rights? Report it and we&apos;ll
+            review it promptly.
+          </p>
+          <ReportRecipeButton recipeId={typedRecipe.id} />
         </div>
       </div>
     </div>

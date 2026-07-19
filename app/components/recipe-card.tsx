@@ -40,6 +40,11 @@ export function RecipeCard({ recipe, showAuthor = true }: RecipeCardProps) {
               ⭐ User&apos;s Original
             </span>
           )}
+          {recipe.image_source === "ai_generated" && (
+            <span className="rounded-full bg-indigo-600/90 px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
+              ✨ {t("recipe_card.ai_image")}
+            </span>
+          )}
           {recipe.is_public === false && (
             <span className="rounded-full bg-zinc-900/70 px-2 py-0.5 text-xs text-white">
               Private
