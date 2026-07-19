@@ -148,7 +148,7 @@ export function CommentSection({ recipeId, recipeOwnerId }: CommentSectionProps)
                 {comment.body}
               </p>
             )}
-            {comment.photo_url && (
+            {comment.photo_url && /^https?:\/\//i.test(comment.photo_url) && (
               <a href={comment.photo_url} target="_blank" rel="noopener noreferrer">
                 <img
                   src={comment.photo_url}

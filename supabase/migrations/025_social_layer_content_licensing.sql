@@ -26,6 +26,14 @@ update public.recipes
 set image_source = case when source_url is null then 'user_upload' else 'imported' end
 where hero_image_url is not null and image_source is null;
 
+-- 2b. Comment photos: block javascript:/data: URIs at the database level
+-- (the UI also validates, but a malicious client could insert directly)
+alter table public.comments
+  drop constraint if exists comments_photo_url_scheme;
+alter table public.comments
+  add constraint comments_photo_url_scheme
+  check (photo_url is null or photo_url ~* '^https?://');
+
 -- 3. Content reports (takedown requests)
 create table if not exists public.content_reports (
   id uuid primary key default gen_random_uuid(),
