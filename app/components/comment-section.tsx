@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Comment } from "@/lib/types";
 
@@ -13,9 +13,12 @@ export function CommentSection({ recipeId, recipeOwnerId }: CommentSectionProps)
   const supabase = createClient();
   const [comments, setComments] = useState<Comment[]>([]);
   const [body, setBody] = useState("");
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     supabase.auth.getUser()
@@ -50,20 +53,47 @@ export function CommentSection({ recipeId, recipeOwnerId }: CommentSectionProps)
     setComments(commentsWithReplies);
   }
 
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/") || file.size > 10 * 1024 * 1024) return;
+    setUploadingPhoto(true);
+    try {
+      const buffer = await file.arrayBuffer();
+      const base64 = btoa(
+        new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), "")
+      );
+      const res = await fetch("/api/upload-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: base64, mimeType: file.type }),
+      });
+      const data = await res.json();
+      if (res.ok) setPhotoUrl(data.url);
+    } catch {
+      // upload failed — user can retry
+    } finally {
+      setUploadingPhoto(false);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!body.trim() || !userId) return;
+    if ((!body.trim() && !photoUrl) || !userId) return;
     setLoading(true);
 
     const { error } = await supabase.from("comments").insert({
       recipe_id: recipeId,
       user_id: userId,
       body: body.trim(),
+      photo_url: photoUrl,
       parent_id: replyTo,
     });
 
     if (!error) {
       setBody("");
+      setPhotoUrl(null);
+      if (photoInputRef.current) photoInputRef.current.value = "";
       setReplyTo(null);
       loadComments();
     }
@@ -113,9 +143,20 @@ export function CommentSection({ recipeId, recipeOwnerId }: CommentSectionProps)
                 </span>
               )}
             </div>
-            <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">
-              {comment.body}
-            </p>
+            {comment.body && (
+              <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">
+                {comment.body}
+              </p>
+            )}
+            {comment.photo_url && (
+              <a href={comment.photo_url} target="_blank" rel="noopener noreferrer">
+                <img
+                  src={comment.photo_url}
+                  alt="Photo shared in comment"
+                  className="mt-2 max-h-64 rounded-lg border border-zinc-200 object-cover dark:border-zinc-700"
+                />
+              </a>
+            )}
             <div className="mt-1 flex items-center gap-3">
               {userId && !isReply && (
                 <button
@@ -161,6 +202,10 @@ export function CommentSection({ recipeId, recipeOwnerId }: CommentSectionProps)
       {/* Comment form */}
       {userId ? (
         <form onSubmit={handleSubmit} className="mt-4">
+          {/* Engagement prompt */}
+          <div className="mb-3 rounded-lg border border-indigo-100 bg-indigo-50/70 px-3 py-2 text-xs text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950/30 dark:text-indigo-300">
+            Cooked this? Share a photo of how it turned out 📸
+          </div>
           {replyTo && (
             <div className="mb-2 flex items-center gap-2 text-xs text-zinc-500">
               <span>Replying to a comment</span>
@@ -183,11 +228,50 @@ export function CommentSection({ recipeId, recipeOwnerId }: CommentSectionProps)
             />
             <button
               type="submit"
-              disabled={!body.trim() || loading}
+              disabled={(!body.trim() && !photoUrl) || loading}
               className="self-end rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
             >
               {loading ? "..." : "Post"}
             </button>
+          </div>
+
+          {/* Photo attach */}
+          <div className="mt-2 flex items-center gap-3">
+            {photoUrl ? (
+              <div className="relative inline-block">
+                <img
+                  src={photoUrl}
+                  alt="Photo to attach"
+                  className="h-20 rounded-lg border border-zinc-200 object-cover dark:border-zinc-700"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPhotoUrl(null);
+                    if (photoInputRef.current) photoInputRef.current.value = "";
+                  }}
+                  className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-zinc-800 text-xs text-white hover:bg-red-600"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => photoInputRef.current?.click()}
+                disabled={uploadingPhoto}
+                className="text-xs text-zinc-500 hover:text-indigo-600 disabled:opacity-50 dark:hover:text-indigo-400"
+              >
+                {uploadingPhoto ? "Uploading photo..." : "📷 Add photo"}
+              </button>
+            )}
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoUpload}
+              className="hidden"
+            />
           </div>
         </form>
       ) : (
@@ -200,7 +284,7 @@ export function CommentSection({ recipeId, recipeOwnerId }: CommentSectionProps)
       <div className="mt-4 divide-y divide-zinc-100 dark:divide-zinc-800">
         {comments.length === 0 ? (
           <p className="py-6 text-center text-sm text-zinc-400">
-            No comments yet. Be the first to share your thoughts!
+            No comments yet — cooked it? Be the first to share a photo or tip!
           </p>
         ) : (
           comments.map((comment) => (
