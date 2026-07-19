@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { CUISINES, MEAL_TYPES, DIETARY_TAGS, DIFFICULTIES, RECIPE_CATEGORIES } from "@/lib/types";
-import type { Ingredient, AlternativeIngredient } from "@/lib/types";
+import type { Ingredient, AlternativeIngredient, ImageSource } from "@/lib/types";
+import { canPublishRecipe } from "@/lib/recipes/publish-policy";
 
 export default function EditRecipePage() {
   const router = useRouter();
@@ -31,6 +32,9 @@ export default function EditRecipePage() {
   const [sourceUrl, setSourceUrl] = useState("");
   const [isPublic, setIsPublic] = useState(true);
   const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null);
+  const [imageSource, setImageSource] = useState<ImageSource | null>(null);
+  const [isChef, setIsChef] = useState(false);
+  const [generatingImage, setGeneratingImage] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [estimatingNutrition, setEstimatingNutrition] = useState(false);
   const [caloriesPerServing, setCaloriesPerServing] = useState<number | null>(null);
@@ -70,6 +74,18 @@ export default function EditRecipePage() {
       setSourceUrl(data.source_url ?? "");
       setIsPublic(data.is_public ?? true);
       setHeroImageUrl(data.hero_image_url ?? null);
+      // Fallback for rows saved before migration 025: infer provenance
+      setImageSource(
+        (data.image_source as ImageSource | null) ??
+          (data.hero_image_url ? (data.source_url ? "imported" : "user_upload") : null)
+      );
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_chef")
+        .eq("id", user.id)
+        .single();
+      setIsChef(!!profile?.is_chef);
       setCaloriesPerServing(data.calories_per_serving ?? null);
       setProteinGrams(data.protein_grams ?? null);
       setCarbsGrams(data.carbs_grams ?? null);
@@ -131,13 +147,53 @@ export default function EditRecipePage() {
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Failed to upload image."); return; }
       setHeroImageUrl(data.url);
+      setImageSource("user_upload");
     } catch { setError("Something went wrong while uploading the image."); }
     finally { setUploadingImage(false); }
+  }
+
+  // ── AI placeholder image (generated on publish, not on import) ──
+  async function handleGenerateAiImage() {
+    if (!title.trim()) {
+      setError("Add a recipe title first so the AI knows what to draw.");
+      return;
+    }
+    setGeneratingImage(true);
+    setError("");
+    try {
+      const res = await fetch("/api/upload-image", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          description,
+          cuisine,
+          ingredients: ingredients.filter((i) => i.name.trim()),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Failed to generate image.");
+        return;
+      }
+      setHeroImageUrl(data.url);
+      setImageSource("ai_generated");
+    } catch {
+      setError("Something went wrong while generating the image.");
+    } finally {
+      setGeneratingImage(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) { setError("Recipe title is required"); return; }
+    if (isPublic && !canPublishRecipe({ imageSource, isChef }).allowed) {
+      setError(
+        "Public recipes need your own photo or an AI-generated image — imported photos can't be published. Upload a photo, generate an AI image, or set the recipe to Private."
+      );
+      return;
+    }
     setSaving(true); setError("");
 
     const { error: updateError } = await supabase
@@ -159,6 +215,7 @@ export default function EditRecipePage() {
         dietary_tags: dietaryTags,
         source_url: sourceUrl.trim() || null,
         hero_image_url: heroImageUrl,
+        image_source: heroImageUrl ? imageSource : null,
         is_public: isPublic,
         calories_per_serving: caloriesPerServing,
         protein_grams: proteinGrams,
@@ -208,7 +265,12 @@ export default function EditRecipePage() {
               <div className="mt-1">
                 <div className="relative overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700">
                   <img src={heroImageUrl} alt="Recipe" className="w-full max-h-72 object-cover" />
-                  <button type="button" onClick={() => { setHeroImageUrl(null); if (imageInputRef.current) imageInputRef.current.value = ""; }}
+                  {imageSource === "ai_generated" && (
+                    <span className="absolute bottom-2 left-2 rounded-full bg-indigo-600/90 px-2.5 py-1 text-xs font-medium text-white shadow">
+                      ✨ AI-generated image
+                    </span>
+                  )}
+                  <button type="button" onClick={() => { setHeroImageUrl(null); setImageSource(null); if (imageInputRef.current) imageInputRef.current.value = ""; }}
                     className="absolute top-2 right-2 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white hover:bg-black/80 transition-colors">
                     Remove
                   </button>
@@ -456,15 +518,53 @@ export default function EditRecipePage() {
             <button type="button" onClick={addStep} className="mt-2 text-sm text-indigo-600 hover:text-indigo-700">+ Add step</button>
           </div>
 
-          <div className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">
-            <label className="relative inline-flex cursor-pointer items-center">
-              <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} className="peer sr-only" />
-              <div className="h-5 w-9 rounded-full bg-zinc-300 after:absolute after:top-[2px] after:left-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all peer-checked:bg-indigo-600 peer-checked:after:translate-x-full dark:bg-zinc-600" />
-            </label>
-            <div>
-              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{isPublic ? "Public" : "Private"}</p>
-              <p className="text-xs text-zinc-500">{isPublic ? "Anyone can discover this recipe" : "Only you can see this recipe"}</p>
+          <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">
+            <div className="flex items-center gap-3">
+              <label className="relative inline-flex cursor-pointer items-center">
+                <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} className="peer sr-only" />
+                <div className="h-5 w-9 rounded-full bg-zinc-300 after:absolute after:top-[2px] after:left-[2px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-all peer-checked:bg-indigo-600 peer-checked:after:translate-x-full dark:bg-zinc-600" />
+              </label>
+              <div>
+                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{isPublic ? "Public" : "Private"}</p>
+                <p className="text-xs text-zinc-500">{isPublic ? "Anyone can discover this recipe" : "Only you can see this recipe"}</p>
+              </div>
             </div>
+
+            {/* IP policy: public recipes need a compliant photo */}
+            {isPublic && !canPublishRecipe({ imageSource, isChef }).allowed && (
+              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/40">
+                <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
+                  To protect creators&apos; copyright, public recipes need your own
+                  photo or an AI-generated image — photos imported from other
+                  sites can&apos;t be published.
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => imageInputRef.current?.click()}
+                    disabled={uploadingImage || generatingImage}
+                    className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50 dark:border-amber-700 dark:bg-zinc-800 dark:text-amber-300"
+                  >
+                    📷 Upload my photo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleGenerateAiImage}
+                    disabled={uploadingImage || generatingImage}
+                    className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    {generatingImage ? (
+                      <>
+                        <div className="h-3 w-3 animate-spin rounded-full border-2 border-indigo-300 border-t-white" />
+                        Generating… (~10s)
+                      </>
+                    ) : (
+                      <>✨ Generate AI image</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Desktop buttons */}

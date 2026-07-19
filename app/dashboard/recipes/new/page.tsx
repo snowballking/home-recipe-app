@@ -4,7 +4,8 @@ import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { CUISINES, MEAL_TYPES, DIETARY_TAGS, DIFFICULTIES, RECIPE_CATEGORIES } from "@/lib/types";
-import type { Ingredient, AlternativeIngredient } from "@/lib/types";
+import type { Ingredient, AlternativeIngredient, ImageSource } from "@/lib/types";
+import { canPublishRecipe } from "@/lib/recipes/publish-policy";
 
 type DetectedPlatform = "youtube" | "website" | "rednote" | "instagram" | null;
 
@@ -39,7 +40,10 @@ function NewRecipePageInner() {
   const [importing, setImporting] = useState(false);
   const [detectedPlatform, setDetectedPlatform] = useState<DetectedPlatform>(null);
   const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null);
+  const [imageSource, setImageSource] = useState<ImageSource | null>(null);
+  const [isChef, setIsChef] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [generatingImage, setGeneratingImage] = useState(false);
   const [estimatingNutrition, setEstimatingNutrition] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
@@ -82,6 +86,26 @@ function NewRecipePageInner() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
+
+  // Licensed chef accounts may publish imported content (creator agreement)
+  useEffect(() => {
+    async function loadChefStatus() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data } = await supabase
+          .from("profiles")
+          .select("is_chef")
+          .eq("id", user.id)
+          .single();
+        setIsChef(!!data?.is_chef);
+      } catch {
+        // auth lock race — safe to ignore
+      }
+    }
+    loadChefStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Helpers ─────────────────────────────────────────────────────
   function addIngredient() {
@@ -171,10 +195,44 @@ function NewRecipePageInner() {
       }
 
       setHeroImageUrl(data.url);
+      setImageSource("user_upload");
     } catch {
       setError("Something went wrong while uploading the image.");
     } finally {
       setUploadingImage(false);
+    }
+  }
+
+  // ── AI placeholder image (generated on publish, not on import) ──
+  async function handleGenerateAiImage() {
+    if (!title.trim()) {
+      setError("Add a recipe title first so the AI knows what to draw.");
+      return;
+    }
+    setGeneratingImage(true);
+    setError("");
+    try {
+      const res = await fetch("/api/upload-image", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          description,
+          cuisine,
+          ingredients: ingredients.filter((i) => i.name.trim()),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Failed to generate image.");
+        return;
+      }
+      setHeroImageUrl(data.url);
+      setImageSource("ai_generated");
+    } catch {
+      setError("Something went wrong while generating the image.");
+    } finally {
+      setGeneratingImage(false);
     }
   }
 
@@ -220,7 +278,11 @@ function NewRecipePageInner() {
     if (r.carbs_grams != null) setCarbsGrams(r.carbs_grams);
     if (r.fat_grams != null) setFatGrams(r.fat_grams);
 
-    if (r.hero_image_url) setHeroImageUrl(r.hero_image_url);
+    if (r.hero_image_url) {
+      setHeroImageUrl(r.hero_image_url);
+      // Photo scraped from the source site — not publishable as-is
+      setImageSource("imported");
+    }
 
     // Simplified Chinese translations from AI
     if (r.title_zh) setTitleZh(r.title_zh);
@@ -270,8 +332,10 @@ function NewRecipePageInner() {
 
       populateForm(data.recipe);
       setSourceUrl(importUrl.trim());
+      // IP policy: imported recipes start private
+      setIsPublic(false);
       setSuccessMsg(
-        "Recipe extracted with AI. Review the details below and save!"
+        "Recipe extracted with AI. Review the details below and save! Imported recipes start private to protect the original creator's copyright — you can publish after adding your own photo or an AI-generated image."
       );
     } catch {
       setError("Something went wrong while importing the recipe.");
@@ -285,6 +349,12 @@ function NewRecipePageInner() {
     e.preventDefault();
     if (!title.trim()) {
       setError("Recipe title is required");
+      return;
+    }
+    if (isPublic && !canPublishRecipe({ imageSource, isChef }).allowed) {
+      setError(
+        "Public recipes need your own photo or an AI-generated image — imported photos can't be published. Upload a photo, generate an AI image, or set the recipe to Private."
+      );
       return;
     }
     setSaving(true);
@@ -328,6 +398,7 @@ function NewRecipePageInner() {
         dietary_tags: dietaryTags,
         source_url: sourceUrl.trim() || null,
         hero_image_url: heroImageUrl,
+        image_source: heroImageUrl ? imageSource : null,
         is_public: isPublic,
         calories_per_serving: caloriesPerServing,
         protein_grams: proteinGrams,
@@ -482,9 +553,14 @@ function NewRecipePageInner() {
                     alt="Recipe preview"
                     className="w-full max-h-72 object-cover"
                   />
+                  {imageSource === "ai_generated" && (
+                    <span className="absolute bottom-2 left-2 rounded-full bg-indigo-600/90 px-2.5 py-1 text-xs font-medium text-white shadow">
+                      ✨ AI-generated image
+                    </span>
+                  )}
                   <button
                     type="button"
-                    onClick={() => { setHeroImageUrl(null); if (imageInputRef.current) imageInputRef.current.value = ""; }}
+                    onClick={() => { setHeroImageUrl(null); setImageSource(null); if (imageInputRef.current) imageInputRef.current.value = ""; }}
                     className="absolute top-2 right-2 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white hover:bg-black/80 transition-colors"
                   >
                     Remove
@@ -503,7 +579,11 @@ function NewRecipePageInner() {
                   <input
                     type="url"
                     value={heroImageUrl}
-                    onChange={(e) => setHeroImageUrl(e.target.value || null)}
+                    onChange={(e) => {
+                      setHeroImageUrl(e.target.value || null);
+                      // Pasted URLs have unknown provenance — treat as imported
+                      setImageSource(e.target.value ? "imported" : null);
+                    }}
                     className={`${inputClass} flex-1 !text-xs`}
                   />
                 </div>
@@ -956,6 +1036,42 @@ function NewRecipePageInner() {
                 </p>
               </div>
             </div>
+
+            {/* IP policy: public recipes need a compliant photo */}
+            {isPublic && !canPublishRecipe({ imageSource, isChef }).allowed && (
+              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/40">
+                <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
+                  To protect creators&apos; copyright, public recipes need your own
+                  photo or an AI-generated image — photos imported from other
+                  sites can&apos;t be published.
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => imageInputRef.current?.click()}
+                    disabled={uploadingImage || generatingImage}
+                    className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50 dark:border-amber-700 dark:bg-zinc-800 dark:text-amber-300"
+                  >
+                    📷 Upload my photo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleGenerateAiImage}
+                    disabled={uploadingImage || generatingImage}
+                    className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    {generatingImage ? (
+                      <>
+                        <div className="h-3 w-3 animate-spin rounded-full border-2 border-indigo-300 border-t-white" />
+                        Generating… (~10s)
+                      </>
+                    ) : (
+                      <>✨ Generate AI image</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Submit */}
