@@ -4,7 +4,6 @@ import { NavBar } from "@/app/components/nav-bar";
 import { RecipeCard } from "@/app/components/recipe-card";
 import { FollowButton } from "@/app/components/follow-button";
 import Link from "next/link";
-import { EditProfileButton } from "./edit-profile-button";
 import { ChangePassword } from "./change-password";
 import type { Recipe, Profile, MealPlan, RecipeSave } from "@/lib/types";
 
@@ -124,10 +123,12 @@ export default async function UserProfilePage({ params }: PageProps) {
                   </span>
                 )}
                 {isOwner ? (
-                  <EditProfileButton
-                    profileId={id}
-                    currentUsername={typedProfile.displayname ?? ""}
-                  />
+                  <Link
+                    href="/dashboard/profile"
+                    className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                  >
+                    Edit Profile
+                  </Link>
                 ) : (
                   <FollowButton targetUserId={id} size="lg" />
                 )}

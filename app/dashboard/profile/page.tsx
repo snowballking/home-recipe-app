@@ -29,11 +29,13 @@ export default function EditProfilePage() {
   const [newMemberName, setNewMemberName] = useState("");
   const [newMemberAgeGroup, setNewMemberAgeGroup] = useState<AgeGroup>("adult");
   const [message, setMessage] = useState("");
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
+      setUserId(user.id);
 
       const { data } = await supabase
         .from("profiles")
@@ -169,12 +171,24 @@ export default function EditProfilePage() {
   return (
     <div className="min-h-full bg-zinc-50 dark:bg-zinc-950">
       <div className="mx-auto max-w-lg px-4 py-8">
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-          Edit Profile
-        </h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          This is how other users will see you in the community.
-        </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+              Edit Profile
+            </h1>
+            <p className="mt-1 text-sm text-zinc-500">
+              This is how other users will see you in the community.
+            </p>
+          </div>
+          {userId && (
+            <a
+              href={`/user/${userId}`}
+              className="shrink-0 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+            >
+              View my profile →
+            </a>
+          )}
+        </div>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-6">
           {message && (
