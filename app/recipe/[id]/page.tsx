@@ -297,8 +297,8 @@ export default async function RecipeDetailPage({ params }: PageProps) {
         {/* Steps */}
         <RecipeSteps recipe={typedRecipe} />
 
-        {/* Source Attribution */}
-        {typedRecipe.source_url && (
+        {/* Source Attribution (scheme check blocks javascript: URIs) */}
+        {typedRecipe.source_url && /^https?:\/\//i.test(typedRecipe.source_url) && (
           <div className="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/50">
             <p className="text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">
               Original Source

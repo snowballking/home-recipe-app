@@ -203,7 +203,8 @@ export default async function UserProfilePage({ params }: PageProps) {
                 <div className="mt-3 flex flex-wrap gap-2">
                   {PROFILE_LINK_LABELS.map(({ key, label, icon }) => {
                     const url = typedProfile.external_links?.[key];
-                    if (!url) return null;
+                    // Only render http(s) links — blocks javascript: URIs
+                    if (!url || !/^https?:\/\//i.test(url)) return null;
                     return (
                       <a
                         key={key}
