@@ -1,9 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { AGE_GROUPS, HouseholdMember, AgeGroup } from "@/lib/types";
+import { AGE_GROUPS, CUISINES, DIETARY_TAGS, HouseholdMember, AgeGroup, ExternalLinks } from "@/lib/types";
+
+const LINK_FIELDS = [
+  { key: "instagram", label: "Instagram", icon: "📷", placeholder: "https://instagram.com/yourhandle" },
+  { key: "youtube", label: "YouTube", icon: "▶", placeholder: "https://youtube.com/@yourchannel" },
+  { key: "tiktok", label: "TikTok", icon: "🎵", placeholder: "https://tiktok.com/@yourhandle" },
+  { key: "website", label: "Website", icon: "🌐", placeholder: "https://yoursite.com" },
+] as const;
 
 export default function EditProfilePage() {
   const router = useRouter();
@@ -12,6 +19,12 @@ export default function EditProfilePage() {
   const [saving, setSaving] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [specialties, setSpecialties] = useState<string[]>([]);
+  const [dietaryPreferences, setDietaryPreferences] = useState<string[]>([]);
+  const [externalLinks, setExternalLinks] = useState<ExternalLinks>({});
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   const [householdMembers, setHouseholdMembers] = useState<HouseholdMember[]>([]);
   const [newMemberName, setNewMemberName] = useState("");
   const [newMemberAgeGroup, setNewMemberAgeGroup] = useState<AgeGroup>("adult");
@@ -31,6 +44,10 @@ export default function EditProfilePage() {
       if (data) {
         setDisplayName(data.displayname ?? "");
         setBio(data.bio ?? "");
+        setAvatarUrl(data.avatar_url ?? null);
+        setSpecialties(data.specialties ?? []);
+        setDietaryPreferences(data.dietary_preferences ?? []);
+        setExternalLinks((data.external_links as ExternalLinks) ?? {});
         setHouseholdMembers(data.household_members ?? []);
       }
       setLoading(false);
@@ -58,6 +75,43 @@ export default function EditProfilePage() {
     setHouseholdMembers(householdMembers.filter((_, i) => i !== index));
   }
 
+  function toggleSpecialty(tag: string) {
+    setSpecialties((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
+  }
+
+  function toggleDietaryPreference(tag: string) {
+    setDietaryPreferences((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
+  }
+
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { setMessage("Error: please select an image file."); return; }
+    if (file.size > 10 * 1024 * 1024) { setMessage("Error: image must be under 10MB."); return; }
+    setUploadingAvatar(true);
+    setMessage("");
+    try {
+      const buffer = await file.arrayBuffer();
+      const base64 = btoa(new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), ""));
+      const res = await fetch("/api/upload-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: base64, mimeType: file.type }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setMessage("Error: " + (data.error || "failed to upload photo.")); return; }
+      setAvatarUrl(data.url);
+    } catch {
+      setMessage("Error: something went wrong while uploading the photo.");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -66,12 +120,29 @@ export default function EditProfilePage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    // Keep only non-empty links; they must be full URLs
+    const cleanedLinks: ExternalLinks = {};
+    for (const { key, label } of LINK_FIELDS) {
+      const value = externalLinks[key]?.trim();
+      if (!value) continue;
+      if (!/^https?:\/\//i.test(value)) {
+        setMessage(`Error: the ${label} link must start with https://`);
+        setSaving(false);
+        return;
+      }
+      cleanedLinks[key] = value;
+    }
+
     const { error } = await supabase
       .from("profiles")
       .upsert({
         id: user.id,
         displayname: displayName.trim() || null,
         bio: bio.trim() || null,
+        avatar_url: avatarUrl,
+        specialties,
+        dietary_preferences: dietaryPreferences,
+        external_links: cleanedLinks,
         household_members: householdMembers,
         updated_at: new Date().toISOString(),
       });
@@ -116,6 +187,44 @@ export default function EditProfilePage() {
             </div>
           )}
 
+          {/* Avatar */}
+          <div className="flex items-center gap-4">
+            <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-100 text-2xl font-bold text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="Profile" className="h-full w-full object-cover" />
+              ) : (
+                (displayName[0] ?? "?").toUpperCase()
+              )}
+            </div>
+            <div>
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+              >
+                {uploadingAvatar ? "Uploading..." : avatarUrl ? "Change photo" : "Add profile photo"}
+              </button>
+              {avatarUrl && (
+                <button
+                  type="button"
+                  onClick={() => setAvatarUrl(null)}
+                  className="ml-2 text-xs text-zinc-400 hover:text-red-500"
+                >
+                  Remove
+                </button>
+              )}
+              <p className="mt-1 text-xs text-zinc-400">JPG, PNG or WebP — max 10MB.</p>
+            </div>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarUpload}
+              className="hidden"
+            />
+          </div>
+
           {/* Display Name & Bio Section */}
           <div className="space-y-4">
             <div>
@@ -142,6 +251,87 @@ export default function EditProfilePage() {
                 rows={3}
                 className={inputClass}
               />
+            </div>
+          </div>
+
+          {/* Specialties */}
+          <div className="border-t border-zinc-200 dark:border-zinc-700 pt-6">
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-1">
+              Cooking Specialties
+            </h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
+              Which cuisines do you cook best? Shown on your public profile.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {CUISINES.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => toggleSpecialty(c)}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                    specialties.includes(c)
+                      ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200"
+                      : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400"
+                  }`}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Dietary Preferences */}
+          <div className="border-t border-zinc-200 dark:border-zinc-700 pt-6">
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-1">
+              Dietary Preferences
+            </h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
+              Your household&apos;s dietary targets — shown on your profile and
+              handy when planning meals.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {DIETARY_TAGS.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => toggleDietaryPreference(tag)}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                    dietaryPreferences.includes(tag)
+                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200"
+                      : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400"
+                  }`}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* External Links */}
+          <div className="border-t border-zinc-200 dark:border-zinc-700 pt-6">
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-1">
+              Links
+            </h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-3">
+              Share where people can follow your cooking.
+            </p>
+            <div className="space-y-3">
+              {LINK_FIELDS.map(({ key, label, icon, placeholder }) => (
+                <div key={key}>
+                  <label className={labelClass}>
+                    {icon} {label}
+                  </label>
+                  <input
+                    type="url"
+                    value={externalLinks[key] ?? ""}
+                    onChange={(e) =>
+                      setExternalLinks((prev) => ({ ...prev, [key]: e.target.value }))
+                    }
+                    placeholder={placeholder}
+                    className={inputClass}
+                  />
+                </div>
+              ))}
             </div>
           </div>
 

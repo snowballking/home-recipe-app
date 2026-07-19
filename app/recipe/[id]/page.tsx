@@ -37,7 +37,7 @@ export default async function RecipeDetailPage({ params }: PageProps) {
     .single();
 
   const typedRecipe = recipe as Recipe;
-  const profile = authorProfile as { id: string; displayname: string | null; avatar_url: string | null; follower_count: number; recipe_count: number } | null;
+  const profile = authorProfile as { id: string; displayname: string | null; avatar_url: string | null; follower_count: number; recipe_count: number; is_chef: boolean | null; specialties: string[] | null } | null;
 
   // Check if current user is the recipe owner
   const { data: { user } } = await supabase.auth.getUser();
@@ -123,13 +123,21 @@ export default async function RecipeDetailPage({ params }: PageProps) {
               {(profile?.displayname?.[0] ?? "?").toUpperCase()}
             </div>
             <div>
-              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+              <p className="flex items-center gap-1.5 text-sm font-medium text-zinc-900 dark:text-zinc-100">
                 {profile?.displayname ?? "Anonymous"}
+                {profile?.is_chef && (
+                  <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                    👨‍🍳 Chef
+                  </span>
+                )}
               </p>
               <p className="text-xs text-zinc-500">
                 {profile?.recipe_count ?? 0} recipes
                 {" · "}
                 {profile?.follower_count ?? 0} followers
+                {(profile?.specialties?.length ?? 0) > 0 && (
+                  <> · {profile?.specialties?.slice(0, 3).join(" · ")}</>
+                )}
               </p>
             </div>
           </Link>

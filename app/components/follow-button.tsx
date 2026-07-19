@@ -5,9 +5,10 @@ import { createClient } from "@/lib/supabase/client";
 
 interface FollowButtonProps {
   targetUserId: string;
+  size?: "md" | "lg";
 }
 
-export function FollowButton({ targetUserId }: FollowButtonProps) {
+export function FollowButton({ targetUserId, size = "md" }: FollowButtonProps) {
   const supabase = createClient();
   const [isFollowing, setIsFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -70,7 +71,9 @@ export function FollowButton({ targetUserId }: FollowButtonProps) {
     <button
       onClick={toggleFollow}
       disabled={loading}
-      className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
+      className={`rounded-lg font-medium transition-colors ${
+        size === "lg" ? "px-6 py-2 text-base" : "px-4 py-1.5 text-sm"
+      } ${
         isFollowing
           ? "border border-zinc-300 bg-white text-zinc-700 hover:border-red-300 hover:text-red-600 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:border-red-700 dark:hover:text-red-400"
           : "bg-indigo-600 text-white hover:bg-indigo-700"
