@@ -36,6 +36,17 @@ export default async function RecipeDetailPage({ params }: PageProps) {
     .eq("id", recipe.user_id)
     .single();
 
+  // Curated chef attribution (imported recipes)
+  let chef: { id: string; name: string } | null = null;
+  if (recipe.chef_id) {
+    const { data: chefData } = await supabase
+      .from("chefs")
+      .select("id, name")
+      .eq("id", recipe.chef_id)
+      .maybeSingle();
+    chef = chefData;
+  }
+
   const typedRecipe = recipe as Recipe;
   const profile = authorProfile as { id: string; displayname: string | null; avatar_url: string | null; follower_count: number; recipe_count: number; is_chef: boolean | null; specialties: string[] | null } | null;
 
@@ -296,6 +307,18 @@ export default async function RecipeDetailPage({ params }: PageProps) {
 
         {/* Steps */}
         <RecipeSteps recipe={typedRecipe} />
+
+        {/* Curated chef attribution */}
+        {chef && (
+          <div className="mt-6">
+            <Link
+              href={`/chefs/${chef.id}`}
+              className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-800 transition-colors hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-300 dark:hover:bg-amber-900/50"
+            >
+              👨‍🍳 By {chef.name} →
+            </Link>
+          </div>
+        )}
 
         {/* Source Attribution (scheme check blocks javascript: URIs) */}
         {typedRecipe.source_url && /^https?:\/\//i.test(typedRecipe.source_url) && (
