@@ -65,6 +65,7 @@ function NewRecipePageInner() {
   const [recipeCategory, setRecipeCategory] = useState("");
   const [dietaryTags, setDietaryTags] = useState<string[]>([]);
   const [sourceUrl, setSourceUrl] = useState("");
+  const [chefId, setChefId] = useState<string | null>(null);
   const [isPublic, setIsPublic] = useState(true);
   const [caloriesPerServing, setCaloriesPerServing] = useState<number | null>(null);
   const [proteinGrams, setProteinGrams] = useState<number | null>(null);
@@ -331,6 +332,7 @@ function NewRecipePageInner() {
       }
 
       populateForm(data.recipe);
+      setChefId(data.chef_id ?? null);
       setSourceUrl(importUrl.trim());
       // IP policy: imported recipes start private
       setIsPublic(false);
@@ -397,6 +399,7 @@ function NewRecipePageInner() {
         category: recipeCategory || null,
         dietary_tags: dietaryTags,
         source_url: sourceUrl.trim() || null,
+        chef_id: chefId,
         hero_image_url: heroImageUrl,
         image_source: heroImageUrl ? imageSource : null,
         is_public: isPublic,

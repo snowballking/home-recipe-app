@@ -87,6 +87,7 @@ export async function POST(request: NextRequest) {
   try {
     let recipe: Record<string, unknown>;
     let imageUrl: string | null = null;
+    let chefId: string | null = null;
 
     if (platform === "youtube") {
       // ── YouTube: Gemini watches the video directly ──────────
@@ -97,12 +98,21 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const [geminiRecipe, thumbnail] = await Promise.all([
+      const [geminiRecipe, thumbnail, channel] = await Promise.all([
         extractFromYouTubeVideo(url, geminiKey),
         Promise.resolve(getYouTubeThumbnail(url)),
+        fetchYouTubeChannel(url),
       ]);
       recipe = geminiRecipe;
       imageUrl = thumbnail;
+      if (channel) {
+        const { data: upsertedChefId } = await supabase.rpc("upsert_chef_for_channel", {
+          p_name: channel.name,
+          p_channel_url: channel.channelUrl,
+          p_source_site: "youtube",
+        });
+        chefId = (upsertedChefId as string | null) ?? null;
+      }
     } else {
       // ── Website / RedNote / Instagram: text → Haiku ─────────
       const isSocialMedia = platform === "rednote" || platform === "instagram";
@@ -133,11 +143,33 @@ export async function POST(request: NextRequest) {
     }
 
     const pipelineLabel = platform === "youtube" ? "gemini-youtube" : `haiku-${platform}`;
-    return Response.json({ recipe, pipeline: pipelineLabel });
+    return Response.json({ recipe, pipeline: pipelineLabel, chef_id: chefId });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Extraction failed";
     console.error(`${platform} extraction error:`, msg);
     return Response.json({ error: msg }, { status: 500 });
+  }
+}
+
+/** Resolve the YouTube channel behind a video URL via oEmbed (no API key).
+ *  Non-fatal: any failure returns null and the import proceeds without a chef. */
+async function fetchYouTubeChannel(
+  url: string
+): Promise<{ name: string; channelUrl: string } | null> {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch(
+      `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`,
+      { signal: controller.signal }
+    );
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    const data = (await res.json()) as { author_name?: unknown; author_url?: unknown };
+    if (typeof data.author_name !== "string" || typeof data.author_url !== "string") return null;
+    return { name: data.author_name, channelUrl: data.author_url };
+  } catch {
+    return null;
   }
 }
 
