@@ -78,6 +78,8 @@ export interface Recipe {
   fat_grams: number | null;
   hero_image_url: string | null;
   image_source: ImageSource | null;
+  chef_id?: string | null;
+  chefs?: { id: string; name: string } | null; // joined via PostgREST
   source_url: string | null;
   is_public: boolean;
   original_recipe_id: string | null;
@@ -265,6 +267,21 @@ export interface ContentReport {
   status: "open" | "resolved" | "dismissed";
   created_at: string;
   recipes?: Recipe;
+}
+
+// ── Chefs (curated creator profiles — NOT app users) ─────────
+
+export type ChefSourceSite = "youtube" | "xiaohongshu" | "website" | "other";
+
+export interface Chef {
+  id: string;
+  name: string;
+  bio: string | null;
+  avatar_url: string | null;
+  channel_url: string | null;
+  source_site: ChefSourceSite;
+  linked_profile_id: string | null;
+  created_at: string;
 }
 
 export const REPORT_REASONS = [
