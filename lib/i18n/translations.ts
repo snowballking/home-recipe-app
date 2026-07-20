@@ -13,6 +13,10 @@ const translations = {
   "nav.meal_plans_market_short": { en: "Meal Plans Market", zh: "餐计划市场" },
   "nav.my_meal_plans": { en: "My\nMeal Plans", zh: "我的\n餐计划" },
   "nav.my_meal_plans_short": { en: "My Meal Plans", zh: "我的餐计划" },
+  "nav.explore": { en: "Explore", zh: "探索" },
+  "nav.explore_short": { en: "Explore", zh: "探索" },
+  "nav.chefs": { en: "Chefs", zh: "厨师" },
+  "nav.chefs_short": { en: "Chefs", zh: "厨师" },
   "nav.admin": { en: "⚙ Admin", zh: "⚙ 管理" },
   "nav.sign_in": { en: "Sign In", zh: "登录" },
   "nav.log_out": { en: "Log Out", zh: "退出" },
@@ -135,6 +139,28 @@ const translations = {
 
   // ── Recipe Card ─────────────────────────────────────
   "recipe_card.ai_image": { en: "AI image", zh: "AI 图片" },
+
+  // Chefs directory
+  "chefs.title": { en: "Chefs", zh: "厨师" },
+  "chefs.subtitle": { en: "Discover the creators behind the recipes", zh: "发现食谱背后的创作者" },
+  "chefs.search": { en: "Search chefs...", zh: "搜索厨师..." },
+  "chefs.recipes": { en: "recipes", zh: "个食谱" },
+  "chefs.followers": { en: "followers", zh: "位粉丝" },
+  "chefs.no_chefs": { en: "No chefs yet", zh: "暂无厨师" },
+  "chefs.visit_channel": { en: "Visit channel", zh: "访问频道" },
+  "chefs.watch_youtube": { en: "Watch on YouTube", zh: "在 YouTube 观看" },
+  "chefs.no_recipes": { en: "No public recipes yet", zh: "暂无公开食谱" },
+
+  // Recipe exploration deck
+  "discover.latest": { en: "🆕 Latest", zh: "🆕 最新" },
+  "discover.popular": { en: "🔥 Popular", zh: "🔥 热门" },
+  "discover.save": { en: "♡ Save", zh: "♡ 收藏" },
+  "discover.saved": { en: "♥ Saved", zh: "♥ 已收藏" },
+  "discover.open": { en: "Open recipe →", zh: "查看食谱 →" },
+  "discover.swipe_hint": { en: "Swipe up for more", zh: "上滑查看更多" },
+  "discover.empty": { en: "No public recipes yet", zh: "暂无公开食谱" },
+
+  "recipe.by_chef": { en: "By", zh: "作者" },
 
   // ── Common ──────────────────────────────────────────
   "common.save": { en: "Save", zh: "保存" },

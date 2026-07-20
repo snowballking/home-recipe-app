@@ -44,10 +44,16 @@ export function NavBar() {
   }
 
   const navLinks = [
+    { href: "/discover", label: t("nav.explore"), shortLabel: t("nav.explore_short") },
     { href: "/market", label: t("nav.recipes_market"), shortLabel: t("nav.recipes_market_short") },
-    ...(user ? [{ href: "/dashboard/recipes", label: t("nav.my_recipes"), shortLabel: t("nav.my_recipes_short") }] : []),
+    { href: "/chefs", label: t("nav.chefs"), shortLabel: t("nav.chefs_short") },
     { href: "/explore", label: t("nav.meal_plans_market"), shortLabel: t("nav.meal_plans_market_short") },
-    ...(user ? [{ href: "/dashboard/plans", label: t("nav.my_meal_plans"), shortLabel: t("nav.my_meal_plans_short") }] : []),
+    ...(user
+      ? [
+          { href: "/dashboard/recipes", label: t("nav.my_recipes"), shortLabel: t("nav.my_recipes_short") },
+          { href: "/dashboard/plans", label: t("nav.my_meal_plans"), shortLabel: t("nav.my_meal_plans_short") },
+        ]
+      : []),
   ];
 
   function isActive(href: string) {
