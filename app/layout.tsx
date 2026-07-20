@@ -21,7 +21,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "HomeRecipe",
+  title: "JuFAN 煮饭",
   description: "Family recipe collection, meal planning & grocery lists",
 };
 

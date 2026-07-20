@@ -68,7 +68,7 @@ export function NavBar() {
           href={user ? "/dashboard/recipes" : "/"}
           className="text-base sm:text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-50"
         >
-          HomeRecipe
+          JuFAN 煮饭
         </Link>
 
         <div className="flex items-center gap-2">
