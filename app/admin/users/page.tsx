@@ -112,12 +112,20 @@ export default function AdminUsersPage() {
               Admin panel — approve or revoke access for users who have signed up.
             </p>
           </div>
-          <a
-            href="/admin/reports"
-            className="shrink-0 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-          >
-            ⚑ Content Reports
-          </a>
+          <div className="flex shrink-0 gap-2">
+            <a
+              href="/admin/chefs"
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+            >
+              👨‍🍳 Chefs
+            </a>
+            <a
+              href="/admin/reports"
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+            >
+              ⚑ Content Reports
+            </a>
+          </div>
         </div>
 
         {error && (
