@@ -3,38 +3,17 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useLanguage } from "@/lib/i18n/language-context";
+import { useAuth } from "@/lib/auth/auth-context";
 
 export function NavBar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [displayName, setDisplayName] = useState("");
+  const { user, isAdmin, displayName } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
   const supabase = createClient();
   const { locale, setLocale, t } = useLanguage();
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data } = await supabase.auth.getUser();
-        setUser(data.user);
-        if (data.user) {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("is_admin, displayname")
-            .eq("id", data.user.id)
-            .maybeSingle();
-          setIsAdmin(!!profile?.is_admin);
-          setDisplayName(profile?.displayname ?? data.user.email?.split("@")[0] ?? "User");
-        }
-      } catch {
-        /* auth lock race — safe to ignore */
-      }
-    })();
-  }, []);
 
   async function handleLogout() {
     setLoggingOut(true);
