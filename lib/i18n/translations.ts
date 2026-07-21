@@ -150,6 +150,8 @@ const translations = {
   "chefs.visit_channel": { en: "Visit channel", zh: "访问频道" },
   "chefs.watch_youtube": { en: "Watch on YouTube", zh: "在 YouTube 观看" },
   "chefs.no_recipes": { en: "No public recipes yet", zh: "暂无公开食谱" },
+  "chefs.featured": { en: "Featured", zh: "特邀" },
+  "chefs.community": { en: "Community", zh: "社区" },
 
   // Recipe exploration deck
   "discover.latest": { en: "🆕 Latest", zh: "🆕 最新" },
