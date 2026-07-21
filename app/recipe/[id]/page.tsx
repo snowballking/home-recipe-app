@@ -8,6 +8,7 @@ import { FollowButton } from "@/app/components/follow-button";
 import { ReportRecipeButton } from "@/app/components/report-recipe-button";
 import { RecipeRating } from "./recipe-rating";
 import { RecipeTitle, RecipeDescription, RecipeImportantNote, RecipeIngredients, RecipeSteps } from "./recipe-content";
+import { ChefFollowButton } from "@/app/components/chef-follow-button";
 import type { Recipe } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -37,14 +38,22 @@ export default async function RecipeDetailPage({ params }: PageProps) {
     .single();
 
   // Curated chef attribution (imported recipes)
-  let chef: { id: string; name: string } | null = null;
+  let chef: { id: string; name: string; avatar_url: string | null } | null = null;
+  let chefRecipeCount = 0;
+  let chefFollowerCount = 0;
   if (recipe.chef_id) {
-    const { data: chefData } = await supabase
-      .from("chefs")
-      .select("id, name")
-      .eq("id", recipe.chef_id)
-      .maybeSingle();
+    const [{ data: chefData }, { count: recipeCount }, { count: followerCount }] = await Promise.all([
+      supabase.from("chefs").select("id, name, avatar_url").eq("id", recipe.chef_id).maybeSingle(),
+      supabase
+        .from("recipes")
+        .select("*", { count: "exact", head: true })
+        .eq("chef_id", recipe.chef_id)
+        .eq("is_public", true),
+      supabase.from("chef_follows").select("*", { count: "exact", head: true }).eq("chef_id", recipe.chef_id),
+    ]);
     chef = chefData;
+    chefRecipeCount = recipeCount ?? 0;
+    chefFollowerCount = followerCount ?? 0;
   }
 
   const typedRecipe = recipe as Recipe;
@@ -124,36 +133,73 @@ export default async function RecipeDetailPage({ params }: PageProps) {
           )}
         </div>
 
-        {/* Author Card */}
-        <div className="mt-4 flex items-center justify-between rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
-          <Link
-            href={`/user/${typedRecipe.user_id}`}
-            className="flex items-center gap-3 hover:opacity-80"
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-sm font-semibold text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300">
-              {(profile?.displayname?.[0] ?? "?").toUpperCase()}
-            </div>
-            <div>
-              <p className="flex items-center gap-1.5 text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                {profile?.displayname ?? "Anonymous"}
-                {profile?.is_chef && (
-                  <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-                    👨‍🍳 Chef
+        {/* Chef Card (curated attribution) — falls back to the uploader when no chef is assigned */}
+        {chef ? (
+          <div className="mt-4">
+            <div className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
+              <Link href={`/chefs/${chef.id}`} className="flex items-center gap-3 hover:opacity-80">
+                {chef.avatar_url && /^https?:\/\//i.test(chef.avatar_url) ? (
+                  <img src={chef.avatar_url} alt={chef.name} className="h-10 w-10 rounded-full object-cover" />
+                ) : (
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-lg dark:bg-amber-900/40">
+                    👨‍🍳
                   </span>
                 )}
-              </p>
-              <p className="text-xs text-zinc-500">
-                {profile?.recipe_count ?? 0} recipes
-                {" · "}
-                {profile?.follower_count ?? 0} followers
-                {(profile?.specialties?.length ?? 0) > 0 && (
-                  <> · {profile?.specialties?.slice(0, 3).join(" · ")}</>
-                )}
-              </p>
+                <div>
+                  <p className="flex items-center gap-1.5 text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                    {chef.name}
+                    <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                      👨‍🍳 Chef
+                    </span>
+                  </p>
+                  <p className="text-xs text-zinc-500">
+                    {chefRecipeCount} recipes · {chefFollowerCount} followers
+                  </p>
+                </div>
+              </Link>
+              <ChefFollowButton chefId={chef.id} />
             </div>
-          </Link>
-          <FollowButton targetUserId={typedRecipe.user_id} />
-        </div>
+            <p className="mt-1.5 px-1 text-xs text-zinc-500">
+              Uploaded by{" "}
+              <Link
+                href={`/user/${typedRecipe.user_id}`}
+                className="font-medium text-indigo-700 hover:underline dark:text-indigo-300"
+              >
+                {profile?.displayname ?? "Anonymous"}
+              </Link>
+            </p>
+          </div>
+        ) : (
+          <div className="mt-4 flex items-center justify-between rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
+            <Link
+              href={`/user/${typedRecipe.user_id}`}
+              className="flex items-center gap-3 hover:opacity-80"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-sm font-semibold text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300">
+                {(profile?.displayname?.[0] ?? "?").toUpperCase()}
+              </div>
+              <div>
+                <p className="flex items-center gap-1.5 text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                  {profile?.displayname ?? "Anonymous"}
+                  {profile?.is_chef && (
+                    <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                      👨‍🍳 Chef
+                    </span>
+                  )}
+                </p>
+                <p className="text-xs text-zinc-500">
+                  {profile?.recipe_count ?? 0} recipes
+                  {" · "}
+                  {profile?.follower_count ?? 0} followers
+                  {(profile?.specialties?.length ?? 0) > 0 && (
+                    <> · {profile?.specialties?.slice(0, 3).join(" · ")}</>
+                  )}
+                </p>
+              </div>
+            </Link>
+            <FollowButton targetUserId={typedRecipe.user_id} />
+          </div>
+        )}
 
         {/* Quick Stats */}
         <div className="mt-4 flex flex-wrap gap-3">
@@ -307,18 +353,6 @@ export default async function RecipeDetailPage({ params }: PageProps) {
 
         {/* Steps */}
         <RecipeSteps recipe={typedRecipe} />
-
-        {/* Curated chef attribution */}
-        {chef && (
-          <div className="mt-6">
-            <Link
-              href={`/chefs/${chef.id}`}
-              className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-800 transition-colors hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-300 dark:hover:bg-amber-900/50"
-            >
-              👨‍🍳 By {chef.name} →
-            </Link>
-          </div>
-        )}
 
         {/* Source Attribution (scheme check blocks javascript: URIs) */}
         {typedRecipe.source_url && /^https?:\/\//i.test(typedRecipe.source_url) && (
