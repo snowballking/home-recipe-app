@@ -39,12 +39,17 @@ export default async function UserProfilePage({ params }: PageProps) {
   const isOwner = viewer?.id === id;
   const viewerEmail = isOwner ? viewer?.email ?? null : null;
 
-  // Get user's public recipes
+  // Get user's public ORIGINAL recipes — ones they created themselves, not
+  // imported. An imported recipe carries a source_url (and, once assigned, a
+  // chef_id pointing at the real external creator), so a profile only shows
+  // its owner's own creations.
   const { data: recipes } = await supabase
     .from("recipes")
     .select("*")
     .eq("user_id", id)
     .eq("is_public", true)
+    .is("source_url", null)
+    .is("chef_id", null)
     .order("created_at", { ascending: false });
 
   const userRecipes = (recipes ?? []) as Recipe[];
@@ -225,7 +230,7 @@ export default async function UserProfilePage({ params }: PageProps) {
               <div className="mt-4 flex flex-wrap gap-6">
                 <div>
                   <p className="text-xl font-bold text-zinc-900 dark:text-zinc-50">
-                    {typedProfile.recipe_count}
+                    {userRecipes.length}
                   </p>
                   <p className="text-xs text-zinc-500">Recipes</p>
                 </div>

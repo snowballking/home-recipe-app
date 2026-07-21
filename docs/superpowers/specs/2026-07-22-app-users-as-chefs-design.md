@@ -19,7 +19,7 @@ Rejected alternatives: (a) auto-create a `chefs` row per user — creates a dupl
 
 ## Scope decisions
 
-- **Who qualifies:** any app user with ≥1 public recipe, included automatically (no admin opt-in, no `is_chef` requirement). Users with no public recipes never appear.
+- **Who qualifies:** any app user with ≥1 public **original** recipe, included automatically (no admin opt-in, no `is_chef` requirement). "Original" means a recipe the user created themselves — `source_url IS NULL AND chef_id IS NULL`. Imported recipes (which carry a `source_url`, and once assigned a `chef_id` pointing at the real external creator) do not count toward a member's chef credit, and members whose public recipes are all imports never appear. The member's `/user/[id]` profile likewise lists only their original recipes, and its "Recipes" stat reflects that count.
 - **Dedup:** a profile already linked to an external chef (`chefs.linked_profile_id`) is excluded from the app-member list so nobody appears twice.
 - **Labels:** external chef cards show a "Featured" cue; app-member cards show a "Community" cue, so it's clear why one card opens `/chefs/[id]` and another opens `/user/[id]`.
 - **Sorting:** merged list sorted by public-recipe count descending (same as today). Name search covers both.
