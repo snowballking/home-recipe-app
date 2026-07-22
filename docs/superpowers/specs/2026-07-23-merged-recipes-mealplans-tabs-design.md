@@ -86,9 +86,12 @@ always fresh.
 
 ### 3. Page edits (toggle insertion only)
 
-- `app/market/page.tsx` — `<CollectionToggle kind="recipes" active="market" />` above
-  the filter bar.
-- `app/dashboard/recipes/page.tsx` — `kind="recipes" active="mine"` above the header;
+The toggle is inserted as the **first element of each page's content container** (above
+the header) on all four pages, so the pill sits in the same visual spot on both sides
+of a Market↔Mine switch.
+
+- `app/market/page.tsx` — `<CollectionToggle kind="recipes" active="market" />`.
+- `app/dashboard/recipes/page.tsx` — `kind="recipes" active="mine"`;
   keep "+ New recipe" button and all filters as-is.
 - `app/explore/page.tsx` — `kind="plans" active="market"`.
 - `app/dashboard/plans/page.tsx` — `kind="plans" active="mine"`; approval queue, status
