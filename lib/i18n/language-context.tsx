@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import type { Locale, TranslationKey } from "./translations";
 import { t as translate } from "./translations";
 
@@ -17,12 +17,16 @@ const LanguageContext = createContext<LanguageContextType>({
 });
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(() => {
-    if (typeof window !== "undefined") {
-      return (localStorage.getItem("homerecipe-lang") as Locale) || "en";
+  // Always start with "en" so the first client render matches the SSR HTML;
+  // the stored preference is applied after mount (avoids hydration mismatch).
+  const [locale, setLocaleState] = useState<Locale>("en");
+
+  useEffect(() => {
+    const stored = localStorage.getItem("homerecipe-lang");
+    if (stored === "zh" || stored === "en") {
+      setLocaleState(stored);
     }
-    return "en";
-  });
+  }, []);
 
   const setLocale = useCallback((newLocale: Locale) => {
     setLocaleState(newLocale);
