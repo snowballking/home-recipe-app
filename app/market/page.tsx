@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { NavBar } from "@/app/components/nav-bar";
 import { RecipeCard } from "@/app/components/recipe-card";
+import { CollectionToggle } from "@/app/components/collection-toggle";
 import { RECIPE_CATEGORIES, CUISINES } from "@/lib/types";
 import type { Recipe, RecipeCategory } from "@/lib/types";
 import { useLanguage } from "@/lib/i18n/language-context";
@@ -84,6 +85,10 @@ export default function RecipesMarketPage() {
       <NavBar />
 
       <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
+        <div className="mb-5 sm:mb-6">
+          <CollectionToggle kind="recipes" active="market" />
+        </div>
+
         {/* Header */}
         <div>
           <h1 className="text-xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-50">{t("market.title")}</h1>

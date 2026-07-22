@@ -17,6 +17,10 @@ const translations = {
   "nav.sign_in": { en: "Sign In", zh: "登录" },
   "nav.log_out": { en: "Log Out", zh: "退出" },
 
+  // ── Market/Mine toggle (merged Recipes & Meal Plans tabs) ──
+  "collection.market": { en: "Market", zh: "市场" },
+  "collection.mine": { en: "Mine", zh: "我的" },
+
   // ── Recipes Market ──────────────────────────────────
   "market.title": { en: "Recipes Market", zh: "食谱市场" },
   "market.subtitle": { en: "Browse public recipes shared by the community", zh: "浏览社区分享的公开食谱" },

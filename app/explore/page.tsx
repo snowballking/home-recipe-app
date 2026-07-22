@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { NavBar } from "@/app/components/nav-bar";
 import Link from "next/link";
+import { CollectionToggle } from "@/app/components/collection-toggle";
 import type { MealPlan, Profile } from "@/lib/types";
 import { useLanguage } from "@/lib/i18n/language-context";
 
@@ -83,6 +84,10 @@ export default function ExplorePage() {
       <NavBar />
 
       <div className="mx-auto max-w-6xl px-4 py-8">
+        <div className="mb-5 sm:mb-6">
+          <CollectionToggle kind="plans" active="market" />
+        </div>
+
         {/* Header */}
         <div>
           <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">

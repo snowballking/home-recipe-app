@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { RecipeCard } from "@/app/components/recipe-card";
+import { CollectionToggle } from "@/app/components/collection-toggle";
 import { RECIPE_CATEGORIES, CUISINES } from "@/lib/types";
 import type { Recipe, RecipeCategory } from "@/lib/types";
 import { useLanguage } from "@/lib/i18n/language-context";
@@ -83,6 +84,10 @@ export default function MyRecipesPage() {
   return (
     <div className="min-h-full bg-zinc-50 dark:bg-zinc-950">
       <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
+        <div className="mb-5 sm:mb-6">
+          <CollectionToggle kind="recipes" active="mine" />
+        </div>
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>

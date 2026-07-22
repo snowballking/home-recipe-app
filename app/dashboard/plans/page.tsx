@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import type { MealPlan } from "@/lib/types";
+import { CollectionToggle } from "@/app/components/collection-toggle";
 import { useLanguage } from "@/lib/i18n/language-context";
 
 function formatDateRange(startDate: string, endDate: string, locale: string): string {
@@ -155,6 +156,10 @@ export default function MyPlansPage() {
   return (
     <div className="min-h-full bg-zinc-50 dark:bg-zinc-950">
       <div className="mx-auto max-w-2xl px-4 py-8">
+        <div className="mb-5 sm:mb-6">
+          <CollectionToggle kind="plans" active="mine" />
+        </div>
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
