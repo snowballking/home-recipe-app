@@ -21,3 +21,15 @@ Write `HANDOFF.md` at the repo root (overwrite the previous one) so the next per
 - If a required item has nothing to report (no failures, no pending owner decisions), write "None this session" — never invent entries to fill a slot.
 - Convert relative references to absolute (dates, SHAs, file paths).
 - This repo: commit `HANDOFF.md` locally as `docs: session handoff notes`. **Never push** — see memory `no-push-without-approval`.
+
+## Required final reply
+
+Your reply to the user has exactly two parts, in this order:
+1. One short paragraph: what the handoff captures and the commit SHA.
+2. This block, verbatim, as the last thing in the reply (these steps are the user's to run — Claude cannot run them):
+
+```
+To resume from this handoff:
+1. Type /clear
+2. Then type: Read handoff.md and pick up from exactly where it left off
+```
