@@ -23,20 +23,18 @@ export function NavBar() {
   }
 
   const navLinks = [
-    { href: "/discover", label: t("nav.explore"), shortLabel: t("nav.explore_short") },
-    { href: "/market", label: t("nav.recipes_market"), shortLabel: t("nav.recipes_market_short") },
-    { href: "/chefs", label: t("nav.chefs"), shortLabel: t("nav.chefs_short") },
-    { href: "/explore", label: t("nav.meal_plans_market"), shortLabel: t("nav.meal_plans_market_short") },
-    ...(user
-      ? [
-          { href: "/dashboard/recipes", label: t("nav.my_recipes"), shortLabel: t("nav.my_recipes_short") },
-          { href: "/dashboard/plans", label: t("nav.my_meal_plans"), shortLabel: t("nav.my_meal_plans_short") },
-        ]
-      : []),
+    { href: "/discover", label: t("nav.explore"), shortLabel: t("nav.explore_short"), match: ["/discover"] },
+    { href: "/market", label: t("nav.recipes"), shortLabel: t("nav.recipes_short"), match: ["/market", "/dashboard/recipes"] },
+    { href: "/chefs", label: t("nav.chefs"), shortLabel: t("nav.chefs_short"), match: ["/chefs"] },
+    { href: "/explore", label: t("nav.meal_plans"), shortLabel: t("nav.meal_plans_short"), match: ["/explore", "/dashboard/plans"] },
   ];
 
   function isActive(href: string) {
     return pathname === href || pathname.startsWith(href + "/");
+  }
+
+  function isLinkActive(match: string[]) {
+    return match.some((m) => pathname === m || pathname.startsWith(m + "/"));
   }
 
   return (
@@ -44,7 +42,7 @@ export function NavBar() {
       {/* Row 1: Brand + Admin + Profile + Logout */}
       <div className="mx-auto flex h-12 max-w-6xl items-center justify-between px-4">
         <Link
-          href={user ? "/dashboard/recipes" : "/"}
+          href={user ? "/market" : "/"}
           className="text-base sm:text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-50"
         >
           JuFAN 煮饭
@@ -125,7 +123,7 @@ export function NavBar() {
                 key={link.href}
                 href={link.href}
                 className={`rounded-md px-1 py-1.5 text-center text-[11px] leading-tight sm:text-sm sm:leading-normal font-medium transition-colors ${
-                  isActive(link.href)
+                  isLinkActive(link.match)
                     ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
                     : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
                 }`}

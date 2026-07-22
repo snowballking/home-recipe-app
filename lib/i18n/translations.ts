@@ -5,14 +5,10 @@ export type Locale = "en" | "zh";
 
 const translations = {
   // ── Navigation ──────────────────────────────────────
-  "nav.recipes_market": { en: "Recipes\nMarket", zh: "食谱\n市场" },
-  "nav.recipes_market_short": { en: "Recipes Market", zh: "食谱市场" },
-  "nav.my_recipes": { en: "My\nRecipes", zh: "我的\n食谱" },
-  "nav.my_recipes_short": { en: "My Recipes", zh: "我的食谱" },
-  "nav.meal_plans_market": { en: "Meal Plans\nMarket", zh: "餐计划\n市场" },
-  "nav.meal_plans_market_short": { en: "Meal Plans Market", zh: "餐计划市场" },
-  "nav.my_meal_plans": { en: "My\nMeal Plans", zh: "我的\n餐计划" },
-  "nav.my_meal_plans_short": { en: "My Meal Plans", zh: "我的餐计划" },
+  "nav.recipes": { en: "Recipes", zh: "食谱" },
+  "nav.recipes_short": { en: "Recipes", zh: "食谱" },
+  "nav.meal_plans": { en: "Meal\nPlans", zh: "餐计划" },
+  "nav.meal_plans_short": { en: "Meal Plans", zh: "餐计划" },
   "nav.explore": { en: "Explore", zh: "探索" },
   "nav.explore_short": { en: "Explore", zh: "探索" },
   "nav.chefs": { en: "Chefs", zh: "厨师" },
