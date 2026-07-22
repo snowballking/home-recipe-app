@@ -44,7 +44,7 @@ export default function AdminUsersPage() {
         if (!user) { router.push("/login"); return; }
         const { data: profile } = await supabase
           .from("profiles").select("is_admin").eq("id", user.id).single();
-        if (!profile?.is_admin) { router.push("/dashboard/recipes"); return; }
+        if (!profile?.is_admin) { router.push("/market"); return; }
         await loadUsers();
       } catch {
         // auth lock race

@@ -20,7 +20,7 @@ export default async function PendingApprovalPage() {
 
   // Already approved? Send them to the app.
   if ((profile as Profile | null)?.is_approved) {
-    redirect("/dashboard/recipes");
+    redirect("/market");
   }
 
   return (

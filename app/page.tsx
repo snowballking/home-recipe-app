@@ -38,7 +38,7 @@ function LandingContent() {
       return;
     }
 
-    router.push("/dashboard/recipes");
+    router.push("/market");
     router.refresh();
   }
 
@@ -51,7 +51,7 @@ function LandingContent() {
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${origin}/auth/callback?next=${encodeURIComponent("/dashboard/recipes")}`,
+        redirectTo: `${origin}/auth/callback?next=${encodeURIComponent("/market")}`,
       },
     });
 
