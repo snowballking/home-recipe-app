@@ -12,22 +12,28 @@ The resulting product loop is:
 
 ```mermaid
 flowchart LR
-  A[Discover a public recipe, variation, or plan] --> B{What does the cook want to do?}
-  B -->|Keep it| C[Save recipe]
-  B -->|Cook it| D[Add recipe's final ingredients to cart]
-  B -->|Organise several meals| E[Add recipe to meal plan]
-  B -->|Adapt it| I[Make it yours]
-  I --> J[Private full recipe variation with clear original credit]
-  J --> K{Publish this variation?}
-  K -->|Keep private| L[Add variation's final ingredients to cart]
-  K -->|Publish explicitly| M[Public variation in Home and Discover]
-  M --> N[Others save, cook, adapt, or add its final ingredients]
-  E --> F[Merged grocery list]
-  D --> G[Shared grocery cart]
-  L --> G
-  N --> G
-  F --> G
-  G --> H[Choose suppliers and check out]
+  A[Discover a public recipe, variation, or plan] --> B{Open}
+  B -->|Recipe or variation| C[Recipe detail: original recipe with selectable variation overlays]
+  B -->|Plan| D[View or organise plan]
+  C --> E{Choose a version}
+  E -->|Original| F[Original recipe and final ingredients]
+  E -->|Variation| G[Selected variation: changes, final ingredients, and original credit]
+  F --> H{What does the cook want to do?}
+  G --> H
+  H -->|Keep it| I[Save selected version]
+  H -->|Cook it| J[Add selected version's final ingredients to cart]
+  H -->|Organise several meals| K[Add selected version to meal plan]
+  H -->|Adapt it| L[Make it yours]
+  L --> M[Private full recipe variation with clear original credit]
+  M --> N{Publish this variation?}
+  N -->|Keep private| G
+  N -->|Publish explicitly| O[Public variation in Home and original recipe detail]
+  O --> C
+  D --> P[Merged grocery list]
+  K --> P
+  J --> Q[Shared grocery cart]
+  P --> Q
+  Q --> R[Choose suppliers and check out]
 ```
 
 ## Approved Product Decisions
@@ -71,6 +77,8 @@ flowchart LR
 - For an **online import**, the extracted recipe opens in a private review workspace. After checking the extracted title, ingredients, and steps, the user can choose **Personalise it** to change quantities, ingredients, steps, servings, or notes before saving. The source URL and attribution remain attached; imported recipes stay private by default.
 - For an **existing public recipe**, Make it yours creates a materialised, private-by-default variation. The cook describes what changed, such as reducing oil, adapting spice, replacing an ingredient, or improving the method. The variation keeps a visible “Based on [creator]’s [recipe]” relationship.
 - Variations are ordinary recipe records, not live delta overlays. This preserves compatibility with meal plans, grocery consolidation, nutrition, search, translations, and existing RLS rules.
+- In the **recipe detail**, the original recipe remains the visual base. A prominent “Variations” overlay/selector shows available public versions—such as “less oil”, “extra spicy”, or “30-minute method”—alongside their creator and a short change summary. Opening a variation keeps the original context and credit visible, but displays the selected version’s final ingredients and steps. The visitor can switch back to the original or select another variation without leaving the recipe family.
+- A direct link to a public variation opens that same recipe-detail experience with that version selected, rather than presenting it as a disconnected recipe. The ingredient, meal-plan, save, and social actions always state and use the currently selected version.
 - A variation begins private to prevent accidental publishing, but its creator can explicitly make it public. Public variations appear in the feed and accept the same follows, comments, saves, ratings, and grocery actions as any other public recipe, while retaining the variation label and original-creator credit.
 - An imported or varied recipe can only become public under the existing content rules: an original photo, AI-generated placeholder, or licensed creator status. The original creator’s imported photo is never copied into a variation.
 
@@ -195,6 +203,7 @@ All new user-facing copy must be bilingual English / Simplified Chinese. Recipe 
 - A new user can open Home and immediately understand that this is a social recipe community.
 - A user can save, comment on, follow, vary, or add a public recipe’s ingredients to a cart from the discovery flow.
 - A user can explicitly publish an eligible variation and add that variation’s adjusted ingredients to the cart, with clear original-recipe credit.
+- A visitor viewing an original recipe can browse its public variations, select one, and see exactly which version will be saved, planned, or added to the cart.
 - A user can buy ingredients for one recipe, several recipe selections, or a meal plan without being forced into a different workflow.
 - A user can still create a recipe or a meal plan from one global Create entry point.
 - Meal planning, cart, and discoverability work comfortably on mobile and desktop.
