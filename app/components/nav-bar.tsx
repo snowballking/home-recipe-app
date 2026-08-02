@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { useAuth } from "@/lib/auth/auth-context";
 import { CreateMenu } from "@/app/components/create-menu";
@@ -24,6 +24,97 @@ const ICONS: Record<PrimaryNavigationKey, string> = {
   plans: "▦",
   cart: "⌑",
 };
+
+interface ProfileMenuProps {
+  userId: string;
+  displayName: string;
+  onLogout: () => Promise<void>;
+  loggingOut: boolean;
+}
+
+function ProfileMenu({ userId, displayName, onLogout, loggingOut }: ProfileMenuProps) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const { t } = useLanguage();
+
+  useEffect(() => {
+    if (!open) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-label={t("nav.profile")}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls="profile-menu"
+        onClick={() => setOpen((current) => !current)}
+        className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-600 text-xs font-semibold text-white transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+      >
+        {(displayName?.[0] ?? "U").toUpperCase()}
+      </button>
+
+      {open && (
+        <div
+          id="profile-menu"
+          role="menu"
+          aria-label={t("nav.profile")}
+          className="absolute right-0 top-[calc(100%+0.65rem)] z-50 w-48 overflow-hidden rounded-2xl border border-orange-100 bg-white p-1.5 shadow-[0_16px_45px_rgba(62,37,16,0.2)] dark:border-stone-700 dark:bg-stone-900"
+        >
+          <Link
+            href={`/user/${userId}`}
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="flex w-full rounded-xl px-3 py-2.5 text-sm font-medium text-stone-700 transition-colors hover:bg-orange-50 hover:text-orange-700 dark:text-stone-200 dark:hover:bg-stone-800 dark:hover:text-orange-300"
+          >
+            {t("nav.my_profile")}
+          </Link>
+          <Link
+            href="/dashboard/profile"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="flex w-full rounded-xl px-3 py-2.5 text-sm font-medium text-stone-700 transition-colors hover:bg-orange-50 hover:text-orange-700 dark:text-stone-200 dark:hover:bg-stone-800 dark:hover:text-orange-300"
+          >
+            {t("nav.edit_profile")}
+          </Link>
+          <div className="my-1 border-t border-orange-100 dark:border-stone-700" />
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => void onLogout()}
+            disabled={loggingOut}
+            className="flex w-full rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:cursor-wait disabled:opacity-60 dark:text-red-400 dark:hover:bg-red-950/30"
+          >
+            {loggingOut ? t("nav.logging_out") : t("nav.log_out")}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function NavBar() {
   const pathname = usePathname();
@@ -104,24 +195,12 @@ export function NavBar() {
             </button>
 
             {user ? (
-              <>
-                <Link
-                  href={`/user/${user.id}`}
-                  title={t("nav.profile")}
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-600 text-xs font-semibold text-white transition-transform hover:scale-105"
-                >
-                  {(displayName?.[0] ?? "U").toUpperCase()}
-                </Link>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  disabled={loggingOut}
-                  aria-label={t("nav.log_out")}
-                  className="rounded-full p-2 text-stone-500 transition-colors hover:bg-orange-50 hover:text-orange-700 disabled:opacity-60 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-orange-300"
-                >
-                  ↗
-                </button>
-              </>
+              <ProfileMenu
+                userId={user.id}
+                displayName={displayName}
+                onLogout={handleLogout}
+                loggingOut={loggingOut}
+              />
             ) : (
               <Link
                 href="/login"
