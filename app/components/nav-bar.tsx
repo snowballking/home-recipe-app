@@ -17,13 +17,61 @@ const LABEL_KEYS: Record<PrimaryNavigationKey, "nav.home" | "nav.discover" | "na
   cart: "nav.cart",
 };
 
-const ICONS: Record<PrimaryNavigationKey, string> = {
-  home: "⌂",
-  discover: "⌕",
-  create: "＋",
-  plans: "▦",
-  cart: "⌑",
-};
+function PrimaryNavIcon({ icon }: { icon: Exclude<PrimaryNavigationKey, "create"> }) {
+  let paths;
+
+  switch (icon) {
+    case "home":
+      paths = (
+        <>
+          <path d="m3 11 9-8 9 8" />
+          <path d="M5 10v10h5v-6h4v6h5V10" />
+        </>
+      );
+      break;
+    case "discover":
+      paths = (
+        <>
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-3.5-3.5" />
+        </>
+      );
+      break;
+    case "plans":
+      paths = (
+        <>
+          <rect x="3" y="5" width="18" height="16" rx="2" />
+          <path d="M16 3v4M8 3v4M3 11h18M8 15h3M8 18h6" />
+        </>
+      );
+      break;
+    case "cart":
+      paths = (
+        <>
+          <path d="M3 3h2l2.4 11.5a2 2 0 0 0 2 1.5h7.8a2 2 0 0 0 2-1.6L21 7H6" />
+          <circle cx="10" cy="20" r="1" />
+          <circle cx="18" cy="20" r="1" />
+        </>
+      );
+      break;
+  }
+
+  return (
+    <svg
+      data-testid={`mobile-nav-icon-${icon}`}
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-6 w-6"
+    >
+      {paths}
+    </svg>
+  );
+}
 
 interface ProfileMenuProps {
   userId: string;
@@ -232,10 +280,12 @@ export function NavBar() {
                 key={item.key}
                 aria-disabled="true"
                 title={t("nav.cart_coming_soon")}
-                className="flex cursor-not-allowed flex-col items-center gap-0.5 py-1 text-[11px] font-medium text-emerald-700 opacity-55 dark:text-emerald-300"
+                className="flex min-h-12 cursor-not-allowed flex-col items-center justify-center gap-1 py-1 font-semibold text-emerald-700 opacity-55 dark:text-emerald-300"
               >
-                <span className="text-base" aria-hidden>{ICONS[item.key]}</span>
-                {t(LABEL_KEYS[item.key])}
+                <PrimaryNavIcon icon={item.key} />
+                <span data-testid={`mobile-nav-label-${item.key}`} className="text-xs leading-none">
+                  {t(LABEL_KEYS[item.key])}
+                </span>
               </span>
             );
           }
@@ -245,14 +295,16 @@ export function NavBar() {
               key={item.key}
               href={item.href ?? "/market"}
               aria-current={item.active ? "page" : undefined}
-              className={`flex flex-col items-center gap-0.5 py-1 text-[11px] font-medium transition-colors ${
+              className={`flex min-h-12 flex-col items-center justify-center gap-1 py-1 font-semibold transition-colors ${
                 item.active
                   ? "text-orange-700 dark:text-orange-300"
                   : "text-stone-500 dark:text-stone-400"
               }`}
             >
-              <span className="text-base" aria-hidden>{ICONS[item.key]}</span>
-              {t(LABEL_KEYS[item.key])}
+              <PrimaryNavIcon icon={item.key} />
+              <span data-testid={`mobile-nav-label-${item.key}`} className="text-xs leading-none">
+                {t(LABEL_KEYS[item.key])}
+              </span>
             </Link>
           );
         })}

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NavBar } from "@/app/components/nav-bar";
@@ -100,5 +100,26 @@ describe("NavBar profile menu", () => {
       expect(mocks.push).toHaveBeenCalledWith("/login");
       expect(mocks.refresh).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+describe("NavBar mobile primary navigation", () => {
+  it("keeps the five destinations while giving standard tabs 24-pixel icons and 12-pixel labels", () => {
+    renderNavBar();
+    const mobileNav = screen.getByRole("navigation", { name: "Mobile primary" });
+
+    expect(within(mobileNav).getByRole("link", { name: "Home" }).getAttribute("href")).toBe("/market");
+    expect(within(mobileNav).getByRole("link", { name: "Discover" }).getAttribute("href")).toBe("/discover");
+    expect(within(mobileNav).getByRole("link", { name: "Plans" }).getAttribute("href")).toBe("/explore");
+    expect(within(mobileNav).getByRole("button", { name: "Create" })).toBeTruthy();
+    expect(within(mobileNav).getByTitle("Universal cart coming soon").getAttribute("aria-disabled")).toBe("true");
+
+    for (const key of ["home", "discover", "plans", "cart"] as const) {
+      const iconClass = within(mobileNav).getByTestId(`mobile-nav-icon-${key}`).getAttribute("class") ?? "";
+      const labelClass = within(mobileNav).getByTestId(`mobile-nav-label-${key}`).getAttribute("class") ?? "";
+      expect(iconClass).toContain("h-6");
+      expect(iconClass).toContain("w-6");
+      expect(labelClass).toContain("text-xs");
+    }
   });
 });
