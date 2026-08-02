@@ -12,14 +12,20 @@ The resulting product loop is:
 
 ```mermaid
 flowchart LR
-  A[Discover a recipe or plan] --> B{What does the cook want to do?}
+  A[Discover a public recipe, variation, or plan] --> B{What does the cook want to do?}
   B -->|Keep it| C[Save recipe]
-  B -->|Cook it| D[Add this recipe's ingredients to cart]
+  B -->|Cook it| D[Add recipe's final ingredients to cart]
   B -->|Organise several meals| E[Add recipe to meal plan]
   B -->|Adapt it| I[Make it yours]
-  I --> J[Private recipe variation]
+  I --> J[Private full recipe variation with clear original credit]
+  J --> K{Publish this variation?}
+  K -->|Keep private| L[Add variation's final ingredients to cart]
+  K -->|Publish explicitly| M[Public variation in Home and Discover]
+  M --> N[Others save, cook, adapt, or add its final ingredients]
   E --> F[Merged grocery list]
   D --> G[Shared grocery cart]
+  L --> G
+  N --> G
   F --> G
   G --> H[Choose suppliers and check out]
 ```
