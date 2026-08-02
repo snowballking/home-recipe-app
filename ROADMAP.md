@@ -24,11 +24,13 @@
 ### Product — build → `FEATURES.md`
 - [ ] Social layer + chef/user profile upgrades — `→ FEATURES §1`
 - [ ] Festive/seasonal meal-plan category (user-tagged) — `→ FEATURES §1b`
+- [ ] Meal-plan goal descriptions — `→ FEATURES §1b`
 - [~] Forking / "overlays" MVP — **built, uncommitted, awaiting Nathan's test** — `→ FEATURES §1`
 - [ ] Duplicate-import nudge — `→ FEATURES §2`
+- [ ] RedNote/Instagram import-accuracy pass — `→ FEATURES §2`
 - [ ] AI placeholder images + IP-safe publishing — `→ FEATURES §3`
 - [ ] Nutrition engine: HPB DB + micronutrients — `→ FEATURES §4`
-- [ ] Recipe content auto-translation (EN↔中文) + 繁體 (nice-to-have) — `→ FEATURES §7`
+- [ ] Recipe content auto-translation (EN↔中文) — `→ FEATURES §7`
 - [ ] CS chatbot + Telegram escalation to owner — `→ FEATURES §6`
 - [ ] PWA + offline grocery list + hardening (load test, RLS review, backups) — `→ FEATURES §8`
 
@@ -76,7 +78,8 @@
 - [ ] Live inventory + supermarket partner APIs — FairPrice / Cold Storage / Sheng Siong have **no public retail APIs**; this is a partnership negotiation sequenced after volume data. `→ FEATURES §5`
 - [ ] Native iOS/Android apps — demand-gated; push notifications are the usual trigger. `→ FEATURES §8`
 - [ ] Paid acquisition — Google + Meta ads. Start only after: company incorporated, soft-launch retention proven, conversion tracking live (pixels added to the PDPA consent banner). Small first (S$10–20/day), scale only what pays back.
-- [ ] HK market entry — PDPO privacy compliance, local suppliers, marketing (content already trilingual EN/简体/繁體 from Phase 1).
+- [ ] 繁體 (Traditional Chinese) content — translate UI + recipe content for HK vocabulary. `→ FEATURES §7`
+- [ ] HK market entry — PDPO privacy compliance, local suppliers, marketing (needs the 繁體 content above).
 - [ ] Premium suppliers (e.g. Ryan's Grocery tier) + chef advertising once traffic justifies.
 
 ---
@@ -90,6 +93,7 @@
 | Beta users recruited | All feedback loops | Nathan |
 | Stall pricing data | Phase 2 pilot design | Nathan |
 | Signed LOIs | Phase 2 pilot start | Nathan |
+| Telegram bot created + chat ID shared | CS escalation (`FEATURES §6`) | Nathan |
 
 ## Top risks
 
@@ -108,7 +112,9 @@ Vercel Pro ~S$27 · Supabase Pro ~S$34 · AI APIs (Gemini + Claude) S$30–150 �
 - **Beta cohort** — who are the first 10? Can stall owners refer regulars?
 - **Chef supply** — how many chefs committed to posting at launch? Which 5 to approach first with the creator agreement?
 - **Company name** — pending the naming exercise (feeds ACRA).
-- **繁體 / HK** — trilingual content ships in Phase 1 so the product is HK-ready; HK *market entry* stays Phase 3.
+- ~~繁體 / HK~~ → **DECIDED (2 Aug 2026): 繁體 content moves to Phase 3, built alongside HK market entry. EN + 简体 is the launch bar.**
+- ~~Imported recipes on member profiles~~ → **DECIDED (2 Aug 2026): show them — the member's original recipes first, then imported ones.** `→ FEATURES §1`
+- **Fork label wording** — pick one bilingual user-facing label for a fork (e.g. "My version" / 改良版) before the forking UI ships. `→ FEATURES §1`
 - ~~Nutrition database~~ → **DECIDED: HPB primary, USDA fallback.**
 - ~~ACRA timing / who files~~ → **DECIDED: Nathan self-files; time for SUTE tax exemption.**
 

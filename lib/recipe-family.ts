@@ -15,6 +15,13 @@ export interface RecipeFamilyOption {
   isOriginal: boolean;
 }
 
+export function getRecipeFamilyOriginalId(
+  recipeId: string,
+  originalRecipeId: string | null,
+): string {
+  return originalRecipeId ?? recipeId;
+}
+
 export function getRecipeFamilyOptions(
   original: RecipeFamilyMember,
   variations: RecipeFamilyMember[],

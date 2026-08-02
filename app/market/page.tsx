@@ -1,209 +1,131 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { NavBar } from "@/app/components/nav-bar";
-import { RecipeCard } from "@/app/components/recipe-card";
-import { CollectionToggle } from "@/app/components/collection-toggle";
-import { RECIPE_CATEGORIES, CUISINES } from "@/lib/types";
-import type { Recipe, RecipeCategory } from "@/lib/types";
+import { RecipeFeedCard } from "@/app/components/recipe-feed-card";
+import { filterFeedRecipes, type FeedTab } from "@/lib/feed";
 import { useLanguage } from "@/lib/i18n/language-context";
-import { translateCategory } from "@/lib/i18n/translations";
+import { createClient } from "@/lib/supabase/client";
+import type { Recipe } from "@/lib/types";
 
-const SORT_OPTIONS = [
-  { value: "newest", labelKey: "market.newest" as const },
-  { value: "top_rated", labelKey: "market.top_rated" as const },
-  { value: "popular", labelKey: "market.most_saved" as const },
-] as const;
+type PublicRecipe = Recipe & {
+  profiles?: { displayname: string | null } | null;
+};
 
-export default function RecipesMarketPage() {
+export default function HomePage() {
   const supabase = createClient();
-  const { locale, t } = useLanguage();
+  const { t } = useLanguage();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [followedUserIds, setFollowedUserIds] = useState<Set<string>>(new Set());
+  const [isSignedIn, setIsSignedIn] = useState(false);
+  const [tab, setTab] = useState<FeedTab>("for-you");
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState<RecipeCategory>("all");
-  const [cuisineFilter, setCuisineFilter] = useState("");
-  const [sortBy, setSortBy] = useState<"newest" | "top_rated" | "popular">("newest");
 
-  const categoryOptions = RECIPE_CATEGORIES.filter((c) => c.value !== "all");
-
-  const loadRecipes = useCallback(async () => {
+  const loadFeed = useCallback(async () => {
     setLoading(true);
 
-    let query = supabase
+    const recipeRequest = supabase
       .from("recipes")
       .select("*, profiles(displayname)")
-      .eq("is_public", true);
+      .eq("is_public", true)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    const { data: { user } } = await supabase.auth.getUser();
+    const [{ data: publicRecipes }, followsResult] = await Promise.all([
+      recipeRequest,
+      user
+        ? supabase.from("follows").select("following_id").eq("follower_id", user.id)
+        : Promise.resolve({ data: [] as { following_id: string }[] }),
+    ]);
 
-    if (search.trim()) {
-      const s = search.trim();
-      query = query.or(`title.ilike.%${s}%,title_zh.ilike.%${s}%`);
-    }
-    if (cuisineFilter) query = query.eq("cuisine", cuisineFilter);
-    if (category !== "all") query = query.eq("category", category);
-
-    if (sortBy === "top_rated") query = query.order("avg_rating", { ascending: false });
-    else if (sortBy === "popular") query = query.order("save_count", { ascending: false });
-    else query = query.order("created_at", { ascending: false });
-
-    query = query.limit(200);
-    const { data } = await query;
-
-    if (!data) { setRecipes([]); setLoading(false); return; }
-
-    const withAuthors = data.map((r) => ({
-      ...r,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      author_name: (r.profiles as any)?.displayname ?? "Anonymous",
-    })) as Recipe[];
+    const withAuthors = ((publicRecipes ?? []) as PublicRecipe[]).map((recipe) => ({
+      ...recipe,
+      author_name: recipe.profiles?.displayname ?? "Anonymous",
+    }));
 
     setRecipes(withAuthors);
+    setFollowedUserIds(new Set((followsResult.data ?? []).map((follow) => follow.following_id)));
+    setIsSignedIn(Boolean(user));
     setLoading(false);
-  }, [search, cuisineFilter, category, sortBy, supabase]);
+  }, [supabase]);
 
   useEffect(() => {
-    const timer = setTimeout(loadRecipes, 300);
-    return () => clearTimeout(timer);
-  }, [loadRecipes]);
+    void loadFeed();
+  }, [loadFeed]);
 
-  // Group by category when "All" is selected
-  const groupedByCategory = useMemo(() => {
-    if (category !== "all") return null;
-    const groups: { label: string; icon: string; recipes: Recipe[] }[] = [];
-    for (const cat of categoryOptions) {
-      const catRecipes = recipes.filter((r) => r.category === cat.value);
-      if (catRecipes.length > 0) groups.push({ label: translateCategory(cat.value, locale), icon: cat.icon, recipes: catRecipes });
-    }
-    const uncategorized = recipes.filter((r) => !r.category || !categoryOptions.some((c) => c.value === r.category));
-    if (uncategorized.length > 0) groups.push({ label: t("market.other"), icon: "📋", recipes: uncategorized });
-    return groups;
-  }, [recipes, category, categoryOptions, t, locale]);
+  const feed = useMemo(
+    () => filterFeedRecipes(recipes, tab, followedUserIds),
+    [recipes, tab, followedUserIds],
+  );
 
   return (
-    <div className="min-h-full bg-zinc-50 dark:bg-zinc-950">
+    <div className="min-h-full bg-[#fffaf4] pb-20 dark:bg-stone-950 md:pb-8">
       <NavBar />
 
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
-        <div className="mb-5 sm:mb-6">
-          <CollectionToggle kind="recipes" active="market" />
-        </div>
-
-        {/* Header */}
-        <div>
-          <h1 className="text-xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-50">{t("market.title")}</h1>
-          <p className="mt-1 text-xs sm:text-sm text-zinc-500 dark:text-zinc-400">{t("market.subtitle")}</p>
-        </div>
-
-        {/* Search + Cuisine */}
-        <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-          <div className="relative flex-1">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={t("market.search")}
-              className="w-full rounded-lg border border-zinc-300 bg-white py-2 pl-9 pr-4 text-sm text-zinc-900 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
-            />
+      <main className="mx-auto max-w-2xl px-4 py-7 sm:py-10">
+        <div className="mb-7 flex items-end justify-between gap-5">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-orange-700 dark:text-orange-300">
+              {t("home.eyebrow")}
+            </p>
+            <h1 className="mt-2 text-3xl font-bold tracking-[-0.045em] text-stone-950 dark:text-stone-50 sm:text-4xl">
+              {t("home.title")}
+            </h1>
           </div>
-          <select
-            value={cuisineFilter}
-            onChange={(e) => setCuisineFilter(e.target.value)}
-            className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+          <Link
+            href="/discover"
+            className="shrink-0 text-sm font-semibold text-orange-700 hover:text-orange-800 dark:text-orange-300 dark:hover:text-orange-200"
           >
-            <option value="">{t("market.all_cuisines")}</option>
-            {CUISINES.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
+            {t("nav.discover")} <span aria-hidden>→</span>
+          </Link>
         </div>
 
-        {/* Category pills */}
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          <button
-            onClick={() => setCategory("all")}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-              category === "all"
-                ? "bg-indigo-600 text-white"
-                : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-            }`}
-          >
-            {t("market.all")}
-          </button>
-          {categoryOptions.map((cat) => (
+        <div className="mb-5 inline-flex rounded-full bg-orange-100/80 p-1 dark:bg-stone-900">
+          {(["for-you", "following"] as const).map((option) => (
             <button
-              key={cat.value}
-              onClick={() => setCategory(category === cat.value ? "all" : cat.value)}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                category === cat.value
-                  ? "bg-indigo-600 text-white"
-                  : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+              key={option}
+              type="button"
+              onClick={() => setTab(option)}
+              aria-pressed={tab === option}
+              className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                tab === option
+                  ? "bg-white text-orange-700 shadow-sm dark:bg-stone-800 dark:text-orange-300"
+                  : "text-stone-600 hover:text-stone-950 dark:text-stone-400 dark:hover:text-stone-100"
               }`}
             >
-              {cat.icon} {translateCategory(cat.value, locale)}
+              {option === "for-you" ? t("home.for_you") : t("home.following")}
             </button>
           ))}
         </div>
 
-        {/* Sort Tabs */}
-        <div className="mt-3 flex gap-1">
-          {SORT_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => setSortBy(opt.value)}
-              className={`rounded-lg px-3 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
-                sortBy === opt.value
-                  ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                  : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
-              }`}
-            >
-              {t(opt.labelKey)}
-            </button>
-          ))}
-        </div>
-
-        {/* Results */}
         {loading ? (
-          <div className="mt-12 text-center">
-            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
-            <p className="mt-3 text-sm text-zinc-500">{t("market.loading")}</p>
+          <div className="rounded-3xl border border-orange-100 bg-white p-10 text-center shadow-[0_10px_35px_rgba(89,57,33,0.06)] dark:border-stone-800 dark:bg-stone-900">
+            <div className="mx-auto h-7 w-7 animate-spin rounded-full border-2 border-orange-200 border-t-orange-600" />
           </div>
-        ) : recipes.length === 0 ? (
-          <div className="mt-12 text-center">
-            <div className="text-5xl">🍽</div>
-            <h2 className="mt-4 text-lg font-semibold text-zinc-900 dark:text-zinc-50">{t("market.no_recipes")}</h2>
-            <p className="mt-2 text-sm text-zinc-500">{t("market.no_recipes_hint")}</p>
+        ) : feed.length > 0 ? (
+          <div className="space-y-5">
+            {feed.map((recipe) => <RecipeFeedCard key={recipe.id} recipe={recipe} />)}
           </div>
-        ) : category !== "all" ? (
-          /* Single category selected — flat grid */
-          <>
-            <p className="mt-4 text-sm text-zinc-500">{recipes.length} {recipes.length !== 1 ? t("market.recipes_count") : t("market.recipe_count")}</p>
-            <div className="mt-3 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
-              {recipes.map((recipe) => (
-                <RecipeCard key={recipe.id} recipe={recipe} showAuthor />
-              ))}
-            </div>
-          </>
+        ) : tab === "following" ? (
+          <section className="rounded-3xl border border-dashed border-orange-200 bg-orange-50/50 px-6 py-12 text-center dark:border-orange-900 dark:bg-orange-950/20">
+            <div className="text-4xl" aria-hidden>👩‍🍳</div>
+            <p className="mx-auto mt-4 max-w-xs text-sm leading-6 text-stone-600 dark:text-stone-300">
+              {t("home.empty_following")}
+            </p>
+            {!isSignedIn && (
+              <Link href="/login" className="mt-5 inline-flex rounded-full bg-stone-900 px-4 py-2 text-sm font-semibold text-white hover:bg-stone-700 dark:bg-orange-600 dark:hover:bg-orange-700">
+                {t("nav.sign_in")}
+              </Link>
+            )}
+          </section>
         ) : (
-          /* Grouped by category */
-          <div className="mt-6 space-y-8">
-            {groupedByCategory?.map(({ label, icon, recipes: catRecipes }) => (
-              <section key={label}>
-                <h2 className="flex items-center gap-2 text-base sm:text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-3">
-                  <span>{icon}</span> {label}
-                  <span className="text-xs font-normal text-zinc-400">({catRecipes.length})</span>
-                </h2>
-                <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
-                  {catRecipes.map((recipe) => (
-                    <RecipeCard key={recipe.id} recipe={recipe} showAuthor />
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
+          <section className="rounded-3xl border border-dashed border-orange-200 bg-orange-50/50 px-6 py-12 text-center dark:border-orange-900 dark:bg-orange-950/20">
+            <div className="text-4xl" aria-hidden>🍲</div>
+            <p className="mt-4 text-sm text-stone-600 dark:text-stone-300">{t("market.no_recipes")}</p>
+          </section>
         )}
-      </div>
+      </main>
     </div>
   );
 }

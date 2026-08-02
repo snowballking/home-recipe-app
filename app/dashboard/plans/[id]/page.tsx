@@ -3,11 +3,12 @@
 import { useParams, useRouter } from "next/navigation";
 import React, { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { MealPlan, MealPlanSlot, MealPlanDayComment, Recipe, NutritionSummary } from "@/lib/types";
-import { RECIPE_CATEGORIES } from "@/lib/types";
+import type { MealPlan, MealPlanSlot, MealPlanDayComment, MealPlanFestival, Recipe, NutritionSummary } from "@/lib/types";
+import { MEAL_PLAN_FESTIVALS, RECIPE_CATEGORIES } from "@/lib/types";
 import Link from "next/link";
 import { useLanguage } from "@/lib/i18n/language-context";
-import { translateCategory } from "@/lib/i18n/translations";
+import { translateCategory, translateFestival } from "@/lib/i18n/translations";
+import { MealPlanFestivalBadge } from "@/app/components/meal-plan-festival-badge";
 
 /** Helper: get display title for a recipe based on locale */
 function recipeDisplayTitle(recipe: Recipe | undefined, locale: string): string {
@@ -458,6 +459,20 @@ export default function MealPlanDetailPage() {
     const { error } = await supabase.from("meal_plans").update({ is_public: !plan.is_public }).eq("id", planId);
     if (error) { setMessage("Error updating sharing: " + error.message); }
     else { setPlan({ ...plan, is_public: !plan.is_public }); }
+    setSaving(false);
+  }
+
+  // Update the optional community festival / season category (owner only).
+  async function saveFestival(festival: MealPlanFestival | null) {
+    if (!plan) return;
+    setSaving(true); setMessage("");
+    const { error } = await supabase.from("meal_plans").update({ festival }).eq("id", planId);
+    if (error) {
+      setMessage("Error updating festival tag: " + error.message);
+    } else {
+      setPlan({ ...plan, festival });
+      setMessage(t("festival.updated"));
+    }
     setSaving(false);
   }
 
@@ -982,6 +997,7 @@ export default function MealPlanDetailPage() {
             {plan.description && (
               <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400">{plan.description}</p>
             )}
+            {plan.festival && <MealPlanFestivalBadge festival={plan.festival} />}
           </div>
         </div>
 
@@ -997,6 +1013,28 @@ export default function MealPlanDetailPage() {
         )}
 
         {/* Approver Section (editable, above action buttons) */}
+        {plan.user_id === userId && (
+          <div className="mb-4 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3">
+            <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+              {t("festival.label")}
+            </label>
+            <p className="mt-1 text-xs text-zinc-500">{t("festival.helper")}</p>
+            <select
+              value={plan.festival ?? ""}
+              onChange={(event) => saveFestival((event.target.value || null) as MealPlanFestival | null)}
+              disabled={saving}
+              className="mt-2 w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+            >
+              <option value="">{t("festival.none")}</option>
+              {MEAL_PLAN_FESTIVALS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.icon} {translateFestival(option.value, locale)}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {plan.user_id === userId && (
           <div className="mb-4 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3">
             <div className="flex items-center justify-between mb-1">

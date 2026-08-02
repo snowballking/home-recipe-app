@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getRecipeFamilyOptions } from "@/lib/recipe-family";
+import { getRecipeFamilyOptions, getRecipeFamilyOriginalId } from "@/lib/recipe-family";
 
 describe("getRecipeFamilyOptions", () => {
   it("keeps the original first and preserves each variation's credit", () => {
@@ -34,5 +34,10 @@ describe("getRecipeFamilyOptions", () => {
         isOriginal: false,
       },
     ]);
+  });
+
+  it("uses a variation's original as the recipe-family anchor", () => {
+    expect(getRecipeFamilyOriginalId("lighter", "original")).toBe("original");
+    expect(getRecipeFamilyOriginalId("original", null)).toBe("original");
   });
 });

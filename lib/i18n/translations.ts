@@ -16,6 +16,35 @@ const translations = {
   "nav.admin": { en: "⚙ Admin", zh: "⚙ 管理" },
   "nav.sign_in": { en: "Sign In", zh: "登录" },
   "nav.log_out": { en: "Log Out", zh: "退出" },
+  "nav.home": { en: "Home", zh: "首页" },
+  "nav.discover": { en: "Discover", zh: "发现" },
+  "nav.plans": { en: "Plans", zh: "计划" },
+  "nav.create": { en: "Create", zh: "创建" },
+  "nav.cart": { en: "Cart", zh: "购物车" },
+  "nav.cart_coming_soon": { en: "Universal cart coming soon", zh: "通用购物车即将推出" },
+  "nav.profile": { en: "Profile", zh: "个人主页" },
+
+  // ── Global creation menu ───────────────────────────
+  "create.title": { en: "Create", zh: "创建" },
+  "create.add_recipe": { en: "Add recipe", zh: "添加食谱" },
+  "create.add_recipe_description": { en: "Write one from scratch or import a recipe link.", zh: "手动创建，或导入食谱链接。" },
+  "create.start_plan": { en: "Start a meal plan", zh: "开始餐计划" },
+  "create.start_plan_description": { en: "Organise several meals when you are ready.", zh: "准备好后，再安排多顿餐食。" },
+
+  // ── Community home ──────────────────────────────────
+  "home.eyebrow": { en: "Community kitchen", zh: "社区厨房" },
+  "home.title": { en: "What are you cooking next?", zh: "下一顿想做什么？" },
+  "home.for_you": { en: "For you", zh: "为你推荐" },
+  "home.following": { en: "Following", zh: "已关注" },
+  "home.empty_following": { en: "Follow a cook to fill this feed.", zh: "关注一位厨友，这里就会有新内容。" },
+  "home.open_recipe": { en: "View recipe", zh: "查看食谱" },
+  "home.comments": { en: "Comments", zh: "评论" },
+
+  // ── Recipe discovery ────────────────────────────────
+  "discover.title": { en: "Find your next favourite", zh: "发现下一道心头好" },
+  "discover.subtitle": { en: "Search recipes, flavours, and community ideas.", zh: "搜索食谱、风味和社区灵感。" },
+  "discover.search": { en: "Try laksa, vegetarian, or Japanese…", zh: "试试搜索叻沙、素食或日式料理……" },
+  "discover.no_matches": { en: "No recipes match that yet.", zh: "暂时没有符合的食谱。" },
 
   // ── Market/Mine toggle (merged Recipes & Meal Plans tabs) ──
   "collection.market": { en: "Market", zh: "市场" },
@@ -98,6 +127,23 @@ const translations = {
   "explore.comment": { en: "comment", zh: "条评论" },
   "explore.comments": { en: "comments", zh: "条评论" },
 
+  // ── Meal-plan festival / season tags ────────────────
+  "festival.label": { en: "Festive / seasonal tag", zh: "节庆 / 季节标签" },
+  "festival.helper": {
+    en: "Optional. Tag a plan so people can find it with other community plans for the same celebration.",
+    zh: "选填。为计划添加标签，让大家能在社区中找到同一节庆的餐计划。",
+  },
+  "festival.none": { en: "No festival or season", zh: "不标记节庆或季节" },
+  "festival.all": { en: "All plans", zh: "所有计划" },
+  "festival.updated": { en: "Festival tag updated", zh: "节庆标签已更新" },
+  "festival.lunar_new_year": { en: "Lunar New Year", zh: "农历新年" },
+  "festival.hari_raya": { en: "Hari Raya", zh: "开斋节" },
+  "festival.deepavali": { en: "Deepavali", zh: "屠妖节" },
+  "festival.mid_autumn": { en: "Mid-Autumn Festival", zh: "中秋节" },
+  "festival.christmas": { en: "Christmas", zh: "圣诞节" },
+  "festival.ramadan": { en: "Ramadan", zh: "斋月" },
+  "festival.new_year": { en: "New Year", zh: "新年" },
+
   // ── My Meal Plans ───────────────────────────────────
   "my_plans.title": { en: "My Meal Plans", zh: "我的餐计划" },
   "my_plans.plan_count": { en: "meal plan", zh: "个餐计划" },
@@ -139,6 +185,166 @@ const translations = {
 
   // ── Recipe Card ─────────────────────────────────────
   "recipe_card.ai_image": { en: "AI image", zh: "AI 图片" },
+
+  // ── Forking / variations ────────────────────────────
+  "fork.variation_tag": { en: "Variation", zh: "改良版" },
+  "fork.make_it_your_own": { en: "🔀 Make it your own", zh: "🔀 做出我的版本" },
+  "fork.variation_of": { en: "🔀 Variation of", zh: "🔀 改良版" },
+  "fork.what_changed": { en: "What changed:", zh: "改动说明：" },
+  "fork.variations": { en: "Variations", zh: "改良版" },
+  "fork.variations_sub": { en: "Other cooks made it their own:", zh: "其他厨友也做出了自己的版本：" },
+  "fork.recipe_versions": { en: "Recipe versions", zh: "食谱版本" },
+  "fork.original": { en: "Original", zh: "原版" },
+  "fork.variation_by": { en: "Variation by", zh: "改良者" },
+  "fork.selected_version": { en: "Selected version", zh: "已选版本" },
+  "fork.change_summary": { en: "What changed", zh: "改动说明" },
+  "fork.untitled": { en: "Untitled variation", zh: "未命名改良版" },
+  "fork.form_heading": { en: "Make a Variation", zh: "制作改良版" },
+  "fork.prefilled_hint": {
+    en: "We've pre-filled the details below — tweak anything you like. Your variation starts private, and the original author's photo isn't copied (add your own or generate one to publish).",
+    zh: "我们已为你预填了以下内容——随意修改。你的改良版默认私密，且不会复制原作者的照片（上传自己的照片或生成 AI 图片后即可公开）。",
+  },
+  "fork.note_label": { en: "What did you change?", zh: "你改了什么？" },
+  "fork.note_placeholder": { en: "e.g. Swapped chicken for tofu and cut the sugar in half", zh: "例如：把鸡肉换成豆腐，糖减半" },
+  "fork.note_helper": { en: "A short note so others know how your variation differs from the original.", zh: "简单说明你的版本与原版有何不同，方便大家了解。" },
+  "fork.note_required": { en: "Tell others what you changed in your variation", zh: "请填写你的改动说明" },
+  "variation.editor_title": { en: "Make a variation", zh: "制作改良版" },
+  "variation.based_on": { en: "Based on", zh: "基于" },
+  "variation.inherited_hint": { en: "The original recipe stays underneath. Add only the ingredients and instructions you want to change.", zh: "原食谱会保留在底层。只需添加你想修改的食材和步骤。" },
+  "variation.summary_label": { en: "What is different?", zh: "这个版本有什么不同？" },
+  "variation.summary_placeholder": { en: "e.g. Less oil, nut-free, and a brighter lime finish", zh: "例如：少油、无坚果，并加入更清新的青柠风味" },
+  "variation.ingredients_title": { en: "Ingredient changes", zh: "食材改动" },
+  "variation.instructions_title": { en: "Instruction changes", zh: "步骤改动" },
+  "variation.no_ingredient_changes": { en: "All ingredients are inherited until you change them.", zh: "在你修改之前，所有食材都沿用原版。" },
+  "variation.no_step_changes": { en: "All instructions are inherited until you change them.", zh: "在你修改之前，所有步骤都沿用原版。" },
+  "variation.replace": { en: "Replace", zh: "替换" },
+  "variation.remove": { en: "Remove", zh: "移除" },
+  "variation.restore": { en: "Restore", zh: "恢复" },
+  "variation.add_ingredient": { en: "Add ingredient", zh: "添加食材" },
+  "variation.replacement_quantity": { en: "Replacement quantity for", zh: "替换用量：" },
+  "variation.replacement_unit": { en: "Replacement unit for", zh: "替换单位：" },
+  "variation.replacement_ingredient": { en: "Replacement ingredient for", zh: "替换食材：" },
+  "variation.additional_quantity": { en: "Additional quantity", zh: "新增用量" },
+  "variation.additional_unit": { en: "Additional unit", zh: "新增单位" },
+  "variation.additional_ingredient": { en: "Additional ingredient", zh: "新增食材" },
+  "variation.removed": { en: "Removed", zh: "已移除" },
+  "variation.rewrite": { en: "Rewrite", zh: "改写" },
+  "variation.step": { en: "step", zh: "步骤" },
+  "variation.add_before": { en: "Add before", zh: "在前面添加" },
+  "variation.add_after": { en: "Add after", zh: "在后面添加" },
+  "variation.rewritten_step": { en: "Rewritten step", zh: "改写后的步骤" },
+  "variation.new_step_before": { en: "New step before step", zh: "新增步骤，位于步骤之前" },
+  "variation.new_step_after": { en: "New step after step", zh: "新增步骤，位于步骤之后" },
+  "variation.save": { en: "Save variation", zh: "保存改良版" },
+  "variation.saving": { en: "Saving variation…", zh: "正在保存改良版……" },
+  "variation.private_hint": { en: "Your variation starts private. You can manage publishing after saving.", zh: "你的改良版默认私密，保存后可再管理公开状态。" },
+  "variation.error_summary": { en: "Describe what is different.", zh: "请说明这个版本有什么不同。" },
+  "variation.error_empty": { en: "Make at least one ingredient or instruction change.", zh: "请至少修改一项食材或步骤。" },
+  "variation.error_invalid": { en: "Complete or restore the highlighted change before saving.", zh: "请完成或恢复标出的改动后再保存。" },
+  "variation.loading": { en: "Loading the original recipe…", zh: "正在加载原食谱……" },
+  "variation.source_error": { en: "We couldn't load the original recipe.", zh: "无法加载原食谱。" },
+  "variation.save_error": { en: "We couldn't save this variation.", zh: "无法保存这个改良版。" },
+  "variation.changes_title": { en: "What changed", zh: "具体改动" },
+  "variation.changes_ingredients": { en: "Ingredients", zh: "食材" },
+  "variation.changes_instructions": { en: "Instructions", zh: "烹饪步骤" },
+  "variation.changed_replaced": { en: "Replaced", zh: "替换" },
+  "variation.changed_added": { en: "Added", zh: "新增" },
+  "variation.changed_removed": { en: "Removed", zh: "移除" },
+  "variation.changed_rewrote_step": { en: "Rewrote step", zh: "改写步骤" },
+  "variation.changed_added_before_step": { en: "Added before step", zh: "新增于步骤之前" },
+  "variation.changed_added_after_step": { en: "Added after step", zh: "新增于步骤之后" },
+  "variation.changed_removed_step": { en: "Removed step", zh: "移除步骤" },
+
+  // ── Recipe form (new / fork) ────────────────────────
+  "form.add_new_recipe": { en: "Add New Recipe", zh: "添加新食谱" },
+  "form.import_title": { en: "Import Recipe with AI", zh: "AI 导入食谱" },
+  "form.import_hint": { en: "Paste a link from YouTube, recipe websites, RedNote, or Instagram", zh: "粘贴 YouTube、食谱网站、小红书或 Instagram 的链接" },
+  "form.import_placeholder": { en: "https://youtube.com/watch?v=... or any recipe URL", zh: "https://youtube.com/watch?v=... 或任意食谱链接" },
+  "form.import_button": { en: "Import", zh: "导入" },
+  "form.importing": { en: "Extracting...", zh: "正在提取..." },
+  "form.importing_video": { en: "Watching video...", zh: "正在观看视频..." },
+  "form.import_youtube_wait": { en: "AI is watching the full video to extract ingredients and steps. This may take up to 60 seconds...", zh: "AI 正在观看完整视频以提取食材和步骤，最长可能需要 60 秒..." },
+  "form.import_disclaimer": {
+    en: "I understand that imported recipes are for personal use. The AI will rephrase cooking instructions in its own words, but I am responsible for ensuring I have the right to share any recipe I make public.",
+    zh: "我理解导入的食谱仅供个人使用。AI 会用自己的语言改写烹饪步骤，但我有责任确保我有权公开分享任何食谱。",
+  },
+  "form.import_success": {
+    en: "Recipe extracted with AI. Review the details below and save! Imported recipes start private to protect the original creator's copyright — you can publish after adding your own photo or an AI-generated image.",
+    zh: "AI 已提取食谱。请检查以下内容并保存！为保护原创作者的版权，导入的食谱默认私密——添加自己的照片或 AI 生成图片后即可公开。",
+  },
+  "form.import_failed": { en: "Failed to import recipe.", zh: "食谱导入失败。" },
+  "form.import_error": { en: "Something went wrong while importing the recipe.", zh: "导入食谱时出了点问题。" },
+  "form.or_manual": { en: "or fill in manually", zh: "或手动填写" },
+  "form.photo": { en: "Recipe Photo", zh: "食谱照片" },
+  "form.photo_upload": { en: "Click to upload a photo of the dish", zh: "点击上传菜品照片" },
+  "form.photo_formats": { en: "JPG, PNG or WebP — max 10MB. Auto-filled when importing from a URL.", zh: "JPG、PNG 或 WebP，最大 10MB。从链接导入时会自动填充。" },
+  "form.photo_uploading": { en: "Uploading...", zh: "上传中..." },
+  "form.photo_remove": { en: "Remove", zh: "移除" },
+  "form.photo_replace": { en: "Replace photo", zh: "更换照片" },
+  "form.photo_paste_url": { en: "or paste an image URL:", zh: "或粘贴图片链接：" },
+  "form.ai_image_badge": { en: "✨ AI-generated image", zh: "✨ AI 生成图片" },
+  "form.title": { en: "Recipe Title", zh: "食谱名称" },
+  "form.title_placeholder": { en: "e.g., Grandma's Chicken Curry", zh: "例如：外婆的咖喱鸡" },
+  "form.title_required": { en: "Recipe title is required", zh: "请填写食谱名称" },
+  "form.description": { en: "Description", zh: "简介" },
+  "form.description_placeholder": { en: "A brief description of this dish...", zh: "简单介绍这道菜..." },
+  "form.source_url": { en: "Source URL (if imported)", zh: "来源链接（如为导入）" },
+  "form.servings": { en: "Servings", zh: "份量" },
+  "form.prep": { en: "Prep (min)", zh: "准备（分钟）" },
+  "form.cook": { en: "Cook (min)", zh: "烹饪（分钟）" },
+  "form.difficulty": { en: "Difficulty", zh: "难度" },
+  "form.category": { en: "Category", zh: "分类" },
+  "form.category_select": { en: "Select category", zh: "选择分类" },
+  "form.cuisine": { en: "Cuisine", zh: "菜系" },
+  "form.cuisine_select": { en: "Select cuisine", zh: "选择菜系" },
+  "form.meal_type": { en: "Meal Type", zh: "餐别" },
+  "form.meal_type_select": { en: "Select type", zh: "选择餐别" },
+  "form.dietary_tags": { en: "Dietary Tags", zh: "饮食标签" },
+  "form.nutrition": { en: "Estimated Nutrition (per serving)", zh: "预估营养（每份）" },
+  "form.estimate_ai": { en: "Estimate with AI", zh: "AI 估算" },
+  "form.estimating": { en: "Estimating…", zh: "估算中…" },
+  "form.nutrition_need_ingredients": { en: "Add ingredients first before estimating nutrition.", zh: "请先添加食材，再估算营养。" },
+  "form.nutrition_error": { en: "Error estimating nutrition: ", zh: "营养估算出错：" },
+  "form.calories": { en: "Calories", zh: "卡路里" },
+  "form.protein_g": { en: "Protein (g)", zh: "蛋白质（克）" },
+  "form.carbs_g": { en: "Carbs (g)", zh: "碳水（克）" },
+  "form.fat_g": { en: "Fat (g)", zh: "脂肪（克）" },
+  "form.important_note_hint": { en: "Optional. Any remarks about this recipe — e.g. \"Less oil\", \"No chilli\", \"Kid-friendly version\".", zh: "选填。关于这道菜的备注——例如「少油」「不要辣」「儿童版」。" },
+  "form.important_note_placeholder": { en: "Add any important remarks here...", zh: "在这里填写重要备注..." },
+  "form.qty": { en: "Qty", zh: "用量" },
+  "form.unit": { en: "Unit", zh: "单位" },
+  "form.ingredient": { en: "Ingredient", zh: "食材" },
+  "form.qty_placeholder": { en: "e.g. 2", zh: "如 2" },
+  "form.unit_placeholder": { en: "e.g. cups", zh: "如 杯" },
+  "form.ingredient_placeholder": { en: "e.g. sliced beef", zh: "如 牛肉片" },
+  "form.add_ingredient": { en: "+ Add ingredient", zh: "+ 添加食材" },
+  "form.alt_ingredients_hint": { en: "Optional. List ingredients that can be substituted and note what replacements work.", zh: "选填。列出可替换的食材，并说明可用什么替代。" },
+  "form.alt_name": { en: "Alternative Ingredient", zh: "可替换食材" },
+  "form.alt_desc": { en: "Description / Replacement Ingredients", zh: "说明 / 替代食材" },
+  "form.alt_name_placeholder": { en: "e.g. butter", zh: "如 黄油" },
+  "form.alt_desc_placeholder": { en: "e.g. margarine or coconut oil (1:1 ratio)", zh: "如 人造黄油或椰子油（1:1 比例）" },
+  "form.add_alt_ingredient": { en: "+ Add alternative ingredient", zh: "+ 添加可替换食材" },
+  "form.step_placeholder": { en: "Step", zh: "步骤" },
+  "form.add_step": { en: "+ Add step", zh: "+ 添加步骤" },
+  "form.public_desc": { en: "Anyone can discover this recipe in the community", zh: "社区中的任何人都能看到这个食谱" },
+  "form.private_desc": { en: "Only you can see this recipe", zh: "只有你能看到这个食谱" },
+  "form.publish_policy": {
+    en: "To protect creators' copyright, public recipes need your own photo or an AI-generated image — photos imported from other sites can't be published.",
+    zh: "为保护创作者版权，公开食谱需要你自己的照片或 AI 生成图片——从其他网站导入的照片不能公开。",
+  },
+  "form.publish_policy_error": {
+    en: "Public recipes need your own photo or an AI-generated image — imported photos can't be published. Upload a photo, generate an AI image, or set the recipe to Private.",
+    zh: "公开食谱需要你自己的照片或 AI 生成图片——导入的照片不能公开。请上传照片、生成 AI 图片，或将食谱设为私密。",
+  },
+  "form.upload_my_photo": { en: "📷 Upload my photo", zh: "📷 上传我的照片" },
+  "form.generate_ai_image": { en: "✨ Generate AI image", zh: "✨ 生成 AI 图片" },
+  "form.generating": { en: "Generating… (~10s)", zh: "生成中…（约 10 秒）" },
+  "form.save_recipe": { en: "Save Recipe", zh: "保存食谱" },
+  "form.saving": { en: "Saving...", zh: "保存中..." },
+
+  // ── Recipe card extras ──────────────────────────────
+  "recipe_card.original": { en: "⭐ User's Original", zh: "⭐ 用户原创" },
+  "recipe_card.cal": { en: "cal", zh: "卡" },
 
   // Chefs directory
   "chefs.title": { en: "Chefs", zh: "厨师" },
@@ -197,6 +403,94 @@ export function translateCategory(value: string, locale: Locale): string {
   const key = CATEGORY_KEY_MAP[value];
   if (key) return t(key, locale);
   return value; // fallback to raw value
+}
+
+/** Map a difficulty value (e.g. "beginner") to its translated label */
+const DIFFICULTY_KEY_MAP: Record<string, TranslationKey> = {
+  beginner: "diff.beginner",
+  intermediate: "diff.intermediate",
+  advanced: "diff.advanced",
+};
+
+export function translateDifficulty(value: string, locale: Locale): string {
+  const key = DIFFICULTY_KEY_MAP[value];
+  if (key) return t(key, locale);
+  return value;
+}
+
+/** Map a meal-type value (e.g. "dinner") to its translated label */
+const MEAL_TYPE_KEY_MAP: Record<string, TranslationKey> = {
+  breakfast: "meal_plan.breakfast",
+  lunch: "meal_plan.lunch",
+  dinner: "meal_plan.dinner",
+  snack: "meal_plan.snack",
+  dessert: "cat.desserts",
+  drinks: "cat.drinks",
+};
+
+export function translateMealType(value: string, locale: Locale): string {
+  const key = MEAL_TYPE_KEY_MAP[value];
+  if (key) return t(key, locale);
+  return value;
+}
+
+/** Map a stored meal-plan festival value to its localized label. */
+const FESTIVAL_KEY_MAP: Record<string, TranslationKey> = {
+  lunar_new_year: "festival.lunar_new_year",
+  hari_raya: "festival.hari_raya",
+  deepavali: "festival.deepavali",
+  mid_autumn: "festival.mid_autumn",
+  christmas: "festival.christmas",
+  ramadan: "festival.ramadan",
+  new_year: "festival.new_year",
+};
+
+export function translateFestival(value: string, locale: Locale): string {
+  const key = FESTIVAL_KEY_MAP[value];
+  if (key) return t(key, locale);
+  return value;
+}
+
+/** Cuisines and dietary tags are stored as their English names — map to Chinese */
+const CUISINE_ZH: Record<string, string> = {
+  Chinese: "中餐",
+  Malay: "马来菜",
+  Indian: "印度菜",
+  Western: "西餐",
+  Japanese: "日本料理",
+  Korean: "韩国料理",
+  Thai: "泰国菜",
+  Vietnamese: "越南菜",
+  Italian: "意大利菜",
+  Mexican: "墨西哥菜",
+  "Middle Eastern": "中东菜",
+  French: "法国菜",
+  American: "美式",
+  Mediterranean: "地中海菜",
+  Other: "其他",
+};
+
+export function translateCuisine(value: string, locale: Locale): string {
+  if (locale === "zh") return CUISINE_ZH[value] ?? value;
+  return value;
+}
+
+const DIETARY_TAG_ZH: Record<string, string> = {
+  Vegetarian: "素食",
+  Vegan: "纯素",
+  Halal: "清真",
+  "Gluten-Free": "无麸质",
+  Keto: "生酮",
+  "Low-Carb": "低碳水",
+  "Dairy-Free": "无乳制品",
+  "Nut-Free": "无坚果",
+  Paleo: "原始饮食",
+  Whole30: "Whole30",
+};
+
+export function translateDietaryTag(value: string, locale: Locale): string {
+  if (locale === "zh") return DIETARY_TAG_ZH[value] ?? value;
+  return value;
 }
 
 export default translations;

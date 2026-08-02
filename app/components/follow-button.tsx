@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useLanguage } from "@/lib/i18n/language-context";
 
 interface FollowButtonProps {
   targetUserId: string;
@@ -10,6 +11,7 @@ interface FollowButtonProps {
 
 export function FollowButton({ targetUserId, size = "md" }: FollowButtonProps) {
   const supabase = createClient();
+  const { locale } = useLanguage();
   const [isFollowing, setIsFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -79,7 +81,9 @@ export function FollowButton({ targetUserId, size = "md" }: FollowButtonProps) {
           : "bg-indigo-600 text-white hover:bg-indigo-700"
       } disabled:opacity-50`}
     >
-      {loading ? "..." : isFollowing ? "Following" : "Follow"}
+      {loading ? "..." : isFollowing
+        ? (locale === "zh" ? "已关注" : "Following")
+        : (locale === "zh" ? "关注" : "Follow")}
     </button>
   );
 }

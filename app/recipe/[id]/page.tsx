@@ -7,8 +7,24 @@ import { SaveRecipeButton } from "@/app/components/save-recipe-button";
 import { FollowButton } from "@/app/components/follow-button";
 import { ReportRecipeButton } from "@/app/components/report-recipe-button";
 import { RecipeRating } from "./recipe-rating";
-import { RecipeTitle, RecipeDescription, RecipeImportantNote, RecipeIngredients, RecipeSteps } from "./recipe-content";
+import {
+  RecipeTitle,
+  RecipeDescription,
+  RecipeImportantNote,
+  RecipeIngredients,
+  RecipeSteps,
+  Tr,
+  RecipeActions,
+  ForkBanner,
+  RecipeDifficultyValue,
+  TrCuisine,
+  TrMealType,
+  TrDietaryTag,
+} from "./recipe-content";
 import { ChefFollowButton } from "@/app/components/chef-follow-button";
+import { RecipeVariationSelector } from "@/app/components/recipe-variation-selector";
+import { RecipeVariationChanges } from "@/app/components/recipe-variation-changes";
+import { getRecipeFamilyOptions, getRecipeFamilyOriginalId } from "@/lib/recipe-family";
 import type { Recipe } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -63,6 +79,79 @@ export default async function RecipeDetailPage({ params }: PageProps) {
   const { data: { user } } = await supabase.auth.getUser();
   const isOwner = user?.id === typedRecipe.user_id;
 
+  // A recipe and its public variations are presented as one family. A direct
+  // link to a variation keeps its materialised recipe data selected while the
+  // original and sibling variations remain available in the selector.
+  const familyOriginalId = getRecipeFamilyOriginalId(
+    typedRecipe.id,
+    typedRecipe.original_recipe_id,
+  );
+  let familyOriginal: {
+    id: string;
+    title: string | null;
+    title_zh: string | null;
+    user_id: string;
+  } = {
+    id: typedRecipe.id,
+    title: typedRecipe.title,
+    title_zh: typedRecipe.title_zh,
+    user_id: typedRecipe.user_id,
+  };
+  let forkParent: { id: string; title: string | null; title_zh: string | null; author: string | null } | null = null;
+  if (familyOriginalId !== typedRecipe.id) {
+    const { data: parent } = await supabase
+      .from("recipes")
+      .select("id, title, title_zh, user_id")
+      .eq("id", familyOriginalId)
+      .maybeSingle();
+    if (parent) {
+      familyOriginal = parent;
+    }
+  }
+
+  const { data: variationsData } = await supabase
+    .from("recipes")
+    .select("id, title, title_zh, user_id, variation_note")
+    .eq("original_recipe_id", familyOriginal.id)
+    .eq("is_public", true)
+    .order("created_at", { ascending: false });
+  const variations = (variationsData ?? []) as {
+    id: string;
+    title: string | null;
+    title_zh: string | null;
+    user_id: string;
+    variation_note: string | null;
+  }[];
+
+  const familyAuthorIds = [...new Set([familyOriginal.user_id, ...variations.map((variation) => variation.user_id)])];
+  const { data: familyAuthors } = await supabase
+    .from("profiles")
+    .select("id, displayname")
+    .in("id", familyAuthorIds);
+  const familyAuthorNames = new Map(
+    (familyAuthors ?? []).map((familyAuthor) => [familyAuthor.id, familyAuthor.displayname as string | null]),
+  );
+  const familyOptions = getRecipeFamilyOptions(
+    {
+      ...familyOriginal,
+      authorName: familyAuthorNames.get(familyOriginal.user_id) ?? null,
+    },
+    variations.map((variation) => ({
+      ...variation,
+      authorName: familyAuthorNames.get(variation.user_id) ?? null,
+      variationNote: variation.variation_note,
+    })),
+  );
+
+  if (familyOriginal.id !== typedRecipe.id) {
+    forkParent = {
+      id: familyOriginal.id,
+      title: familyOriginal.title,
+      title_zh: familyOriginal.title_zh,
+      author: familyAuthorNames.get(familyOriginal.user_id) ?? null,
+    };
+  }
+
   const totalTime = (typedRecipe.prep_time ?? 0) + (typedRecipe.cook_time ?? 0);
   const altIngredients = (typedRecipe.alternative_ingredients ?? []) as { name: string; description: string }[];
 
@@ -74,7 +163,7 @@ export default async function RecipeDetailPage({ params }: PageProps) {
         {/* Breadcrumb */}
         <nav className="mb-6 text-sm text-zinc-500">
           <Link href="/explore" className="hover:text-indigo-600">
-            Explore
+            <Tr en="Explore" zh="探索" />
           </Link>
           <span className="mx-2">/</span>
           <span className="text-zinc-900 dark:text-zinc-100">
@@ -90,14 +179,14 @@ export default async function RecipeDetailPage({ params }: PageProps) {
               alt={typedRecipe.title ?? ""}
               className="h-full w-full object-cover"
             />
-            {!typedRecipe.source_url && (
+            {!typedRecipe.source_url && !typedRecipe.original_recipe_id && (
               <span className="absolute top-3 right-3 rounded-full bg-emerald-600/90 px-3 py-1 text-xs font-semibold text-white shadow">
-                ⭐ User&apos;s Original
+                <Tr en="⭐ User's Original" zh="⭐ 用户原创" />
               </span>
             )}
             {typedRecipe.image_source === "ai_generated" && (
               <span className="absolute bottom-3 left-3 rounded-full bg-indigo-600/90 px-3 py-1 text-xs font-semibold text-white shadow">
-                ✨ AI-generated image
+                <Tr en="✨ AI-generated image" zh="✨ AI 生成图片" />
               </span>
             )}
           </div>
@@ -110,7 +199,7 @@ export default async function RecipeDetailPage({ params }: PageProps) {
               href={`/dashboard/recipes/${typedRecipe.id}/edit`}
               className="text-sm font-medium text-indigo-700 hover:underline dark:text-indigo-300"
             >
-              📷 Cooked it? Replace the AI image with a photo of your own dish →
+              <Tr en="📷 Cooked it? Replace the AI image with a photo of your own dish →" zh="📷 做过这道菜？把 AI 图片换成你自己拍的照片 →" />
             </Link>
           </div>
         )}
@@ -123,15 +212,26 @@ export default async function RecipeDetailPage({ params }: PageProps) {
             </h1>
             <RecipeDescription recipe={typedRecipe} />
           </div>
-          {isOwner && (
-            <Link
-              href={`/dashboard/recipes/${typedRecipe.id}/edit`}
-              className="shrink-0 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-300"
-            >
-              Edit
-            </Link>
-          )}
+          <RecipeActions recipeId={typedRecipe.id} isOwner={isOwner} isLoggedIn={!!user} />
         </div>
+
+        <RecipeVariationSelector
+          activeRecipeId={typedRecipe.id}
+          options={familyOptions}
+        />
+
+        {/* "Based on…" banner — this recipe is a variation of another */}
+        {forkParent && (
+          <ForkBanner
+            parentId={forkParent.id}
+            title={forkParent.title}
+            titleZh={forkParent.title_zh}
+            author={forkParent.author}
+            note={typedRecipe.variation_note}
+          />
+        )}
+
+        <RecipeVariationChanges diff={typedRecipe.variation_diff} />
 
         {/* Chef Card (curated attribution) — falls back to the uploader when no chef is assigned */}
         {chef ? (
@@ -149,18 +249,18 @@ export default async function RecipeDetailPage({ params }: PageProps) {
                   <p className="flex items-center gap-1.5 text-sm font-medium text-zinc-900 dark:text-zinc-100">
                     {chef.name}
                     <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-                      👨‍🍳 Chef
+                      👨‍🍳 <Tr en="Chef" zh="厨师" />
                     </span>
                   </p>
                   <p className="text-xs text-zinc-500">
-                    {chefRecipeCount} recipes · {chefFollowerCount} followers
+                    {chefRecipeCount} <Tr en="recipes" zh="个食谱" /> · {chefFollowerCount} <Tr en="followers" zh="位粉丝" />
                   </p>
                 </div>
               </Link>
               <ChefFollowButton chefId={chef.id} />
             </div>
             <p className="mt-1.5 px-1 text-xs text-zinc-500">
-              Uploaded by{" "}
+              <Tr en="Uploaded by" zh="上传者：" />{" "}
               <Link
                 href={`/user/${typedRecipe.user_id}`}
                 className="font-medium text-indigo-700 hover:underline dark:text-indigo-300"
@@ -183,14 +283,14 @@ export default async function RecipeDetailPage({ params }: PageProps) {
                   {profile?.displayname ?? "Anonymous"}
                   {profile?.is_chef && (
                     <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-                      👨‍🍳 Chef
+                      👨‍🍳 <Tr en="Chef" zh="厨师" />
                     </span>
                   )}
                 </p>
                 <p className="text-xs text-zinc-500">
-                  {profile?.recipe_count ?? 0} recipes
+                  {profile?.recipe_count ?? 0} <Tr en="recipes" zh="个食谱" />
                   {" · "}
-                  {profile?.follower_count ?? 0} followers
+                  {profile?.follower_count ?? 0} <Tr en="followers" zh="位粉丝" />
                   {(profile?.specialties?.length ?? 0) > 0 && (
                     <> · {profile?.specialties?.slice(0, 3).join(" · ")}</>
                   )}
@@ -206,26 +306,26 @@ export default async function RecipeDetailPage({ params }: PageProps) {
           {totalTime > 0 && (
             <div className="rounded-lg bg-white px-3 py-2 text-center border border-zinc-200 dark:border-zinc-800 dark:bg-zinc-900">
               <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">{totalTime}</p>
-              <p className="text-xs text-zinc-500">minutes</p>
+              <p className="text-xs text-zinc-500"><Tr en="minutes" zh="分钟" /></p>
             </div>
           )}
           <div className="rounded-lg bg-white px-3 py-2 text-center border border-zinc-200 dark:border-zinc-800 dark:bg-zinc-900">
             <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">{typedRecipe.servings}</p>
-            <p className="text-xs text-zinc-500">servings</p>
+            <p className="text-xs text-zinc-500"><Tr en="servings" zh="份量" /></p>
           </div>
           {typedRecipe.calories_per_serving && (
             <div className="rounded-lg bg-white px-3 py-2 text-center border border-zinc-200 dark:border-zinc-800 dark:bg-zinc-900">
               <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
                 {Math.round(typedRecipe.calories_per_serving)}
               </p>
-              <p className="text-xs text-zinc-500">cal/serving</p>
+              <p className="text-xs text-zinc-500"><Tr en="cal/serving" zh="卡/份" /></p>
             </div>
           )}
           <div className="rounded-lg bg-white px-3 py-2 text-center border border-zinc-200 dark:border-zinc-800 dark:bg-zinc-900">
             <p className="text-lg font-semibold capitalize text-zinc-900 dark:text-zinc-50">
-              {typedRecipe.difficulty}
+              <RecipeDifficultyValue value={typedRecipe.difficulty} />
             </p>
-            <p className="text-xs text-zinc-500">difficulty</p>
+            <p className="text-xs text-zinc-500"><Tr en="difficulty" zh="难度" /></p>
           </div>
         </div>
 
@@ -234,12 +334,12 @@ export default async function RecipeDetailPage({ params }: PageProps) {
           <div className="mt-3 flex flex-wrap gap-2">
             {typedRecipe.cuisine && (
               <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-                {typedRecipe.cuisine}
+                <TrCuisine value={typedRecipe.cuisine} />
               </span>
             )}
             {typedRecipe.meal_type && (
               <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-medium capitalize text-violet-700 dark:bg-violet-950 dark:text-violet-300">
-                {typedRecipe.meal_type}
+                <TrMealType value={typedRecipe.meal_type} />
               </span>
             )}
             {typedRecipe.dietary_tags?.map((tag) => (
@@ -247,7 +347,7 @@ export default async function RecipeDetailPage({ params }: PageProps) {
                 key={tag}
                 className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
               >
-                {tag}
+                <TrDietaryTag value={tag} />
               </span>
             ))}
           </div>
@@ -271,7 +371,7 @@ export default async function RecipeDetailPage({ params }: PageProps) {
             className="text-sm text-zinc-600 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-400"
           >
             💬 {typedRecipe.comment_count}{" "}
-            {typedRecipe.comment_count === 1 ? "comment" : "comments"}
+            {typedRecipe.comment_count === 1 ? <Tr en="comment" zh="条评论" /> : <Tr en="comments" zh="条评论" />}
           </a>
         </div>
 
@@ -279,36 +379,36 @@ export default async function RecipeDetailPage({ params }: PageProps) {
         {typedRecipe.calories_per_serving && (
           <div className="mt-6 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              Estimated Nutrition (per serving)
+              <Tr en="Estimated Nutrition (per serving)" zh="预估营养（每份）" />
             </h2>
             <div className="mt-3 grid grid-cols-4 gap-4 text-center">
               <div>
                 <p className="text-xl font-bold text-zinc-900 dark:text-zinc-50">
                   {Math.round(typedRecipe.calories_per_serving)}
                 </p>
-                <p className="text-xs text-zinc-500">Calories</p>
+                <p className="text-xs text-zinc-500"><Tr en="Calories" zh="卡路里" /></p>
               </div>
               {typedRecipe.protein_grams != null && (
                 <div>
                   <p className="text-xl font-bold text-blue-600">{Math.round(typedRecipe.protein_grams)}g</p>
-                  <p className="text-xs text-zinc-500">Protein</p>
+                  <p className="text-xs text-zinc-500"><Tr en="Protein" zh="蛋白质" /></p>
                 </div>
               )}
               {typedRecipe.carbs_grams != null && (
                 <div>
                   <p className="text-xl font-bold text-amber-600">{Math.round(typedRecipe.carbs_grams)}g</p>
-                  <p className="text-xs text-zinc-500">Carbs</p>
+                  <p className="text-xs text-zinc-500"><Tr en="Carbs" zh="碳水" /></p>
                 </div>
               )}
               {typedRecipe.fat_grams != null && (
                 <div>
                   <p className="text-xl font-bold text-red-500">{Math.round(typedRecipe.fat_grams)}g</p>
-                  <p className="text-xs text-zinc-500">Fat</p>
+                  <p className="text-xs text-zinc-500"><Tr en="Fat" zh="脂肪" /></p>
                 </div>
               )}
             </div>
             <p className="mt-2 text-[10px] text-zinc-400">
-              * Nutritional values are estimates and may vary based on preparation.
+              <Tr en="* Nutritional values are estimates and may vary based on preparation." zh="* 营养数值为估算值，实际可能因做法不同而有差异。" />
             </p>
           </div>
         )}
@@ -358,7 +458,7 @@ export default async function RecipeDetailPage({ params }: PageProps) {
         {typedRecipe.source_url && /^https?:\/\//i.test(typedRecipe.source_url) && (
           <div className="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/50">
             <p className="text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">
-              Original Source
+              <Tr en="Original Source" zh="原始来源" />
             </p>
             <a
               href={typedRecipe.source_url}
@@ -373,7 +473,7 @@ export default async function RecipeDetailPage({ params }: PageProps) {
               <span className="ml-1 text-blue-400">&#8599;</span>
             </a>
             <p className="mt-1.5 text-[11px] text-blue-500 dark:text-blue-400">
-              This recipe was adapted from the source above. Visit the original for the author&apos;s full version.
+              <Tr en="This recipe was adapted from the source above. Visit the original for the author's full version." zh="本食谱改编自上方来源。查看原文以获取作者的完整版本。" />
             </p>
           </div>
         )}
@@ -389,8 +489,7 @@ export default async function RecipeDetailPage({ params }: PageProps) {
         {/* Report content (takedown) */}
         <div className="mt-8 border-t border-zinc-200 pt-4 dark:border-zinc-800">
           <p className="mb-1 text-xs text-zinc-400">
-            Believe this recipe infringes your rights? Report it and we&apos;ll
-            review it promptly.
+            <Tr en="Believe this recipe infringes your rights? Report it and we'll review it promptly." zh="认为此食谱侵犯了你的权益？举报后我们会尽快处理。" />
           </p>
           <ReportRecipeButton recipeId={typedRecipe.id} />
         </div>

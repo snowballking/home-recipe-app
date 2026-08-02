@@ -7,7 +7,7 @@
 **Phases** (shared with `ROADMAP.md`):
 - **Phase 1 — Soft Launch:** the pre-launch product + company groundwork.
 - **Phase 2 — Monetization Pilot (month 4+):** payments + concierge grocery ordering; needs signed suppliers.
-- **Phase 3 — Scale (later):** live inventory + partner APIs, native apps, paid acquisition.
+- **Phase 3 — Scale (later):** live inventory + partner APIs, native apps, 繁體/HK content, paid acquisition.
 
 **Last updated:** 2 Aug 2026
 
@@ -30,12 +30,12 @@
 |---|---|---|---|---|
 | 1 | **Community & social + "overlays" (forking)** | 🔨 mostly built | 1 | "Overlay" = the forking/variations MVP (built, uncommitted) |
 | 1b | **Meal-plan sharing incl. festive/seasonal** | ✅ sharing / 📋 festive tag | 1 | Festive/seasonal = **user-tagged category** (community-filled) |
-| 2 | **UX: browse, easy upload, grocery list** | ✅ built | 1 | Grocery **list** exists; **buying through the app** is Phase 2 |
+| 2 | **UX: browse, easy upload, grocery list** | ✅ core / 📋 additions | 1 | Offline list, duplicate nudge, import-accuracy pass still 📋; **buying through the app** is Phase 2 |
 | 3 | **Chef credits & content licensing** | 🔨 partial | 1 | Attribution exists; formal creator agreements + AI photos to come |
 | 4 | **Asian-accurate calorie + nutrient engine** | 🔨 AI-only today | 1 | Move from AI-guess to **HPB database + AI matching** |
 | 5 | **Grocery shopping & fulfillment** | 🔮 | 2 → 3 | Wet market + supermarkets; phased concierge → AI routing → live inventory |
 | 6 | **AI customer service + Telegram escalation** | 📋 | 1 | Chatbot + escalation to owner via Telegram |
-| 7 | **Bilingual (EN / 简体; 繁體 next)** | ✅ EN/简体 | 1 | Content auto-translation + 繁體 planned |
+| 7 | **Bilingual (EN / 简体)** | ✅ UI / 📋 content auto-translation | 1 / 3 | 繁體 (HK) content moved to Phase 3 |
 | 8 | **PWA now, native apps later** | 📋 PWA / 🔮 native | 1 / 3 | Native only on proven demand |
 
 ---
@@ -48,6 +48,7 @@
 - **Recipe feed / discovery** — `Explore` and `Discover` pages to browse public recipes. ✅ Built
 - **Social interactions** — follow chefs, comment (threaded, with photos), like/rate recipes. ✅ Built (migration `025_social_layer_content_licensing`)
 - **Chef profiles & directory** — public chef pages and a browsable directory. ✅ Built (migrations `026`–`028`); a **profile upgrade** (bio, specialty tags, IG/YouTube links, follower + recipe showcase) is 📋 Phase 1.
+- **Profile recipe ordering — decided (2 Aug 2026):** a member's public profile shows their **original recipes first, then their imported ones**. Today imports are hidden entirely (`source_url is null` filter), so this is a small query + ordering change. 📋 Phase 1 (ships with the profile upgrade).
 - **"Overlays" = recipe forking / variations** — take any public recipe, make your own version ("Make it your own"), with a required note on what you changed and a "Based on [chef]'s [dish]" credit banner to the original. 🔨 Built as an MVP (uncommitted, awaiting test); migration `029_recipe_variations` is already live.
 
 **Design decision — materialized fork, not live overlay:** a fork is a *full copy* of the recipe row, **not** a delta/overlay table. Rationale: an overlay would force base+overlay merging into every consumer of recipe data (nutrition, grocery generation, meal-plan slots, translation, search) — a permanent complexity tax. A full copy means zero downstream changes.
@@ -155,6 +156,7 @@
 **Phasing**
 - **Grocery list** — ✅ built.
 - **Payments (HitPay: PayNow + cards)** — 🔮 Phase 2.
+- **Voucher engine** (new-user discount codes, 5–7%) — 🔮 Phase 2, ships with payments.
 - **Concierge ordering pilot** with signed stalls (order in app → WhatsApp/manual fulfillment → learn unit economics before building anything heavier) — 🔮 Phase 2.
 - **AI-assisted routing** (AI agent messages stalls, parses confirmations) — 🔮 Phase 2/3.
 - **Live inventory + supermarket APIs** — 🔮 Phase 3. Note: **FairPrice / Cold Storage / Sheng Siong have no public retail APIs.** This is a *partnership negotiation*, not an integration you can just build — sequenced *after* pilot volume exists, because volume is your leverage.
@@ -204,6 +206,11 @@ flowchart TD
 2. **AI-assisted routing (Phase 2/3):** an AI agent drafts and sends the WhatsApp/Telegram messages to stall owners and parses their confirmations, with a human approving edge cases. This is your "AI agents pass the information and get confirmation from wet-market partners" idea.
 3. **Live inventory + partner APIs (Phase 3):** only once volume justifies it and a supermarket partnership is signed. Inventory state (the dashed `LIVE` block) feeds availability checks in real time; supermarket orders go over an API where a partnership grants one, concierge/manual where it doesn't.
 
+**Build detail — vouchers (Phase 2, ships with payments)**
+- **Schema:** a `vouchers` table (code, % discount, valid-from/until dates, max redemptions, one-per-user flag, active flag) + a `voucher_redemptions` table (voucher, user, order, timestamp) — so a code can't be reused and you can see which codes actually convert.
+- **Flow:** at checkout the user enters a code → the server validates it (exists, active, within its dates, this user hasn't used it) → the discount is applied to the HitPay charge amount **server-side** (never trust a total computed in the browser).
+- **Launch scope:** percentage-off only (5–7% new-user codes), no stacking multiple codes. UI strings bilingual as always; server logic in existing route files (Vercel env-var gotcha).
+
 **Open question / recommendation**
 - **Don't build the live-inventory + API engine yet** — most expensive, most externally-blocked (needs signed partners willing to expose stock). Prove demand with a concierge pilot first; let volume pull the automation into existence.
 - **Wet markets are the differentiator** (supermarkets already have apps). The AI-agent-over-WhatsApp path to a stall owner is genuinely novel — prototype *that* first, on one or two friendly stalls.
@@ -226,18 +233,18 @@ flowchart TD
 
 ---
 
-## 7. Bilingual (English / Simplified Chinese, + 繁體 next)
+## 7. Bilingual (English / Simplified Chinese; 繁體 in Phase 3)
 
 > **Vision:** the app is fully usable in both English and 简体中文 — not a half-translated experience where a Chinese-reading user hits a wall of English. Every user-visible string exists in both languages.
 
 **What it does**
 - **EN / 简体 switcher + full translation layer** — an i18n system (`lib/i18n/translations.ts`) plus a `Tr` helper and value-translators for cuisines, difficulty, dietary tags, etc. ✅ Built. **Every new UI string must be added bilingually** — a hard project rule (a past regression shipped forking UI English-only and caused a "complete disconnect" for a Chinese-reading tester).
 - **Recipe *content* auto-translation (EN↔中文)** — translate recipe content fields (e.g. imported ingredient names) so they display in the reader's language, not just the UI chrome. 📋 Phase 1 (extends the existing `extract-recipe` route — **not** a new route).
-- **Traditional Chinese (繁體, for Hong Kong)** — a third language, stored in the DB and translated at write-time, targeting correct HK vocabulary (e.g. 薯仔 not 土豆). 📋 Phase 1 (nice-to-have; deferrable without hurting the SG launch — EN + 简体 is the launch bar).
+- **Traditional Chinese (繁體, for Hong Kong)** — a third language, stored in the DB and translated at write-time, targeting correct HK vocabulary (e.g. 薯仔 not 土豆). 🔮 **Phase 3 — decided (2 Aug 2026):** built alongside HK market entry, not before. EN + 简体 is the launch bar.
 
 **Build detail**
-- **Storage model:** UI strings come from the translation layer keyed by locale. Recipe *content* (chef-authored + imported) is translated **once at write-time and stored** (add `_zh_hant` columns mirroring the existing `_zh` fields), so reads are instant and translations are chef-editable — chosen over translate-on-view because recipes are read far more than written.
-- **Translation model — native Chinese AI:** use **Qwen or DeepSeek** (cheap, internationally accessible) for EN→中文 — stronger cultural/culinary nuance than US models. **Choose by bake-off:** translate 5 sample recipes with Qwen, DeepSeek, and Gemini (baseline); native-speaker judgment for 简体, an HK reader for 繁體 (mainland models must prove HK vocabulary, e.g. 薯仔 not 土豆). Wire behind a **swappable `translate()` provider** (same pattern as image generation). The winner is also the candidate for RedNote extraction (§2).
+- **Storage model:** UI strings come from the translation layer keyed by locale. Recipe *content* (chef-authored + imported) is translated **once at write-time and stored**, so reads are instant and translations are chef-editable — chosen over translate-on-view because recipes are read far more than written. (繁體 gets `_zh_hant` columns mirroring the existing `_zh` fields — Phase 3.)
+- **Translation model — native Chinese AI:** use **Qwen or DeepSeek** (cheap, internationally accessible) for EN→中文 — stronger cultural/culinary nuance than US models. **Choose by bake-off:** translate 5 sample recipes with Qwen, DeepSeek, and Gemini (baseline); native-speaker judgment for 简体. (When 繁體 comes in Phase 3, re-test with an HK reader — mainland models must prove HK vocabulary, e.g. 薯仔 not 土豆.) Wire behind a **swappable `translate()` provider** (same pattern as image generation). The winner is also the candidate for RedNote extraction (§2).
 
 ---
 
@@ -263,13 +270,15 @@ flowchart TD
 ## Feature index by phase
 
 **Phase 1 — Soft Launch (product build)**
-- Social layer + chef/user profile upgrades → §1
+- Social layer + chef/user profile upgrades (incl. originals-first, then imports, on profiles) → §1
 - Festive/seasonal meal-plan category → §1b
+- Meal-plan goal descriptions → §1b
 - Forking / "overlays" (🔨 built early, pending test) → §1
 - Duplicate-import nudge → §2
+- RedNote/Instagram import-accuracy pass → §2
 - AI placeholder images + IP-safe publishing → §3
 - Nutrition engine: HPB DB + micronutrients → §4
-- Recipe content auto-translation + 繁體 → §7
+- Recipe content auto-translation (EN↔中文) → §7
 - CS chatbot + Telegram escalation → §6
 - PWA + offline grocery list + hardening → §8
 
@@ -281,6 +290,7 @@ flowchart TD
 **Phase 3 — Scale (later)**
 - Live inventory + supermarket partner APIs → §5
 - Native iOS/Android apps → §8
+- 繁體 (Traditional Chinese) content for HK → §7
 - Fuzzy same-dish detection (pgvector) → §1
 
 ---

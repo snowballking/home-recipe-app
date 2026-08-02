@@ -4,6 +4,7 @@ import Link from "next/link";
 import { StarRating } from "./star-rating";
 import type { Recipe } from "@/lib/types";
 import { useLanguage } from "@/lib/i18n/language-context";
+import { translateCuisine, translateDietaryTag, translateDifficulty } from "@/lib/i18n/translations";
 
 interface RecipeCardProps {
   recipe: Recipe;
@@ -35,9 +36,14 @@ export function RecipeCard({ recipe, showAuthor = true }: RecipeCardProps) {
         )}
         {/* Top-right badges stack */}
         <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
-          {!recipe.source_url && (
+          {!recipe.source_url && !recipe.original_recipe_id && (
             <span className="rounded-full bg-emerald-600/90 px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
-              ⭐ User&apos;s Original
+              {t("recipe_card.original")}
+            </span>
+          )}
+          {recipe.original_recipe_id && (
+            <span className="rounded-full bg-violet-600/90 px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
+              🔀 {t("fork.variation_tag")}
             </span>
           )}
           {recipe.image_source === "ai_generated" && (
@@ -47,7 +53,7 @@ export function RecipeCard({ recipe, showAuthor = true }: RecipeCardProps) {
           )}
           {recipe.is_public === false && (
             <span className="rounded-full bg-zinc-900/70 px-2 py-0.5 text-xs text-white">
-              Private
+              {t("recipe.private")}
             </span>
           )}
         </div>
@@ -61,7 +67,7 @@ export function RecipeCard({ recipe, showAuthor = true }: RecipeCardProps) {
 
         {showAuthor && recipe.author_name && (
           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-            by {recipe.author_name}
+            {t("recipe.by_chef")} {recipe.author_name}
           </p>
         )}
 
@@ -77,10 +83,10 @@ export function RecipeCard({ recipe, showAuthor = true }: RecipeCardProps) {
         <div className="mt-auto flex items-center gap-3 pt-3 text-xs text-zinc-500 dark:text-zinc-400">
           {totalTime > 0 && <span>{totalTime} {t("recipe.minutes")}</span>}
           {recipe.calories_per_serving && (
-            <span>{Math.round(recipe.calories_per_serving)} cal</span>
+            <span>{Math.round(recipe.calories_per_serving)} {t("recipe_card.cal")}</span>
           )}
           {recipe.difficulty && (
-            <span className="capitalize">{recipe.difficulty}</span>
+            <span className="capitalize">{translateDifficulty(recipe.difficulty, locale)}</span>
           )}
         </div>
 
@@ -89,7 +95,7 @@ export function RecipeCard({ recipe, showAuthor = true }: RecipeCardProps) {
           <div className="mt-2 flex flex-wrap gap-1">
             {recipe.cuisine && (
               <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-                {recipe.cuisine}
+                {translateCuisine(recipe.cuisine, locale)}
               </span>
             )}
             {recipe.dietary_tags?.slice(0, 2).map((tag) => (
@@ -97,7 +103,7 @@ export function RecipeCard({ recipe, showAuthor = true }: RecipeCardProps) {
                 key={tag}
                 className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
               >
-                {tag}
+                {translateDietaryTag(tag, locale)}
               </span>
             ))}
           </div>

@@ -6,6 +6,24 @@ import { createClient } from "@/lib/supabase/client";
 import { useState } from "react";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { useAuth } from "@/lib/auth/auth-context";
+import { CreateMenu } from "@/app/components/create-menu";
+import { getPrimaryNavigation, type PrimaryNavigationKey } from "@/lib/navigation";
+
+const LABEL_KEYS: Record<PrimaryNavigationKey, "nav.home" | "nav.discover" | "nav.create" | "nav.plans" | "nav.cart"> = {
+  home: "nav.home",
+  discover: "nav.discover",
+  create: "nav.create",
+  plans: "nav.plans",
+  cart: "nav.cart",
+};
+
+const ICONS: Record<PrimaryNavigationKey, string> = {
+  home: "⌂",
+  discover: "⌕",
+  create: "＋",
+  plans: "▦",
+  cart: "⌑",
+};
 
 export function NavBar() {
   const pathname = usePathname();
@@ -14,6 +32,8 @@ export function NavBar() {
   const [loggingOut, setLoggingOut] = useState(false);
   const supabase = createClient();
   const { locale, setLocale, t } = useLanguage();
+  const navigation = getPrimaryNavigation(pathname);
+  const desktopLinks = navigation.filter((item) => item.href && item.key !== "create" && item.key !== "cart");
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -22,120 +42,142 @@ export function NavBar() {
     router.refresh();
   }
 
-  const navLinks = [
-    { href: "/discover", label: t("nav.explore"), shortLabel: t("nav.explore_short"), match: ["/discover"] },
-    { href: "/market", label: t("nav.recipes"), shortLabel: t("nav.recipes_short"), match: ["/market", "/dashboard/recipes"] },
-    { href: "/chefs", label: t("nav.chefs"), shortLabel: t("nav.chefs_short"), match: ["/chefs"] },
-    { href: "/explore", label: t("nav.meal_plans"), shortLabel: t("nav.meal_plans_short"), match: ["/explore", "/dashboard/plans"] },
-  ];
-
-  function isActive(href: string) {
-    return pathname === href || pathname.startsWith(href + "/");
-  }
-
-  function isLinkActive(match: string[]) {
-    return match.some((m) => pathname === m || pathname.startsWith(m + "/"));
+  function toggleLocale() {
+    setLocale(locale === "en" ? "zh" : "en");
   }
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-zinc-200 bg-white/90 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-950/90">
-      {/* Row 1: Brand + Admin + Profile + Logout */}
-      <div className="mx-auto flex h-12 max-w-6xl items-center justify-between px-4">
-        <Link
-          href={user ? "/market" : "/"}
-          className="text-base sm:text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-50"
-        >
-          JuFAN 煮饭
-        </Link>
+    <>
+      <header className="sticky top-0 z-50 border-b border-orange-100/90 bg-[#fffaf4]/90 backdrop-blur-xl dark:border-stone-800 dark:bg-stone-950/90">
+        <div className="mx-auto flex min-h-14 max-w-6xl items-center justify-between gap-3 px-4">
+          <Link
+            href={user ? "/market" : "/"}
+            className="shrink-0 font-bold tracking-[-0.03em] text-stone-950 dark:text-stone-50"
+          >
+            Chef HideOut <span className="text-orange-600">私厨</span>
+          </Link>
 
-        <div className="flex items-center gap-2">
-          {isAdmin && (
-            <Link
-              href="/admin/users"
-              className={`rounded-md px-2 py-1 text-xs sm:text-sm font-medium transition-colors ${
-                isActive("/admin/users")
-                  ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
-                  : "text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
-              }`}
-            >
-              {t("nav.admin")}
-            </Link>
-          )}
-
-          {user ? (
-            <>
+          <nav aria-label="Primary" className="hidden items-center gap-1 rounded-full bg-orange-50/80 p-1 md:flex dark:bg-stone-900">
+            {desktopLinks.map((item) => (
               <Link
-                href={`/user/${user.id}`}
-                title={user.email ?? "Profile"}
-                className="flex items-center gap-1.5 rounded-full bg-indigo-50 pl-1 pr-2.5 py-1 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 transition-colors"
+                key={item.key}
+                href={item.href ?? "/market"}
+                aria-current={item.active ? "page" : undefined}
+                className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                  item.active
+                    ? "bg-white text-orange-700 shadow-sm dark:bg-stone-800 dark:text-orange-300"
+                    : "text-stone-600 hover:text-stone-950 dark:text-stone-400 dark:hover:text-stone-100"
+                }`}
               >
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-600 text-xs font-semibold text-white">
-                  {(displayName?.[0] ?? "U").toUpperCase()}
-                </span>
-                <span className="text-xs font-medium text-indigo-700 dark:text-indigo-300 max-w-[80px] truncate">
-                  {displayName}
-                </span>
+                {t(LABEL_KEYS[item.key])}
               </Link>
-              <button
-                type="button"
-                onClick={() => setLocale(locale === "en" ? "zh" : "en")}
-                className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
-                title={locale === "en" ? "切换中文" : "Switch to English"}
+            ))}
+          </nav>
+
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <CreateMenu className="hidden sm:inline-flex" />
+            <span
+              aria-disabled="true"
+              title={t("nav.cart_coming_soon")}
+              className="hidden cursor-not-allowed items-center gap-1 rounded-full px-3 py-2 text-sm font-medium text-emerald-700 opacity-60 sm:inline-flex dark:text-emerald-300"
+            >
+              <span aria-hidden>⌑</span>
+              {t("nav.cart")}
+            </span>
+
+            {isAdmin && (
+              <Link
+                href="/admin/users"
+                className="hidden rounded-full px-3 py-2 text-xs font-medium text-stone-600 hover:bg-orange-50 hover:text-orange-700 sm:inline-flex dark:text-stone-300 dark:hover:bg-stone-800"
               >
-                {locale === "en" ? "中文" : "EN"}
-              </button>
-              <button
-                type="button"
-                onClick={handleLogout}
-                disabled={loggingOut}
-                className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
-              >
-                {loggingOut ? "..." : t("nav.log_out")}
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => setLocale(locale === "en" ? "zh" : "en")}
-                className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
-                title={locale === "en" ? "切换中文" : "Switch to English"}
-              >
-                {locale === "en" ? "中文" : "EN"}
-              </button>
+                {t("nav.admin")}
+              </Link>
+            )}
+
+            <button
+              type="button"
+              onClick={toggleLocale}
+              className="rounded-full border border-orange-100 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-700 transition-colors hover:border-orange-200 hover:bg-orange-50 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800"
+              title={locale === "en" ? "切换中文" : "Switch to English"}
+            >
+              {locale === "en" ? "中文" : "EN"}
+            </button>
+
+            {user ? (
+              <>
+                <Link
+                  href={`/user/${user.id}`}
+                  title={t("nav.profile")}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-600 text-xs font-semibold text-white transition-transform hover:scale-105"
+                >
+                  {(displayName?.[0] ?? "U").toUpperCase()}
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  disabled={loggingOut}
+                  aria-label={t("nav.log_out")}
+                  className="rounded-full p-2 text-stone-500 transition-colors hover:bg-orange-50 hover:text-orange-700 disabled:opacity-60 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-orange-300"
+                >
+                  ↗
+                </button>
+              </>
+            ) : (
               <Link
                 href="/login"
-                className="rounded-md bg-indigo-600 px-3 py-1 text-xs sm:text-sm font-medium text-white hover:bg-indigo-700"
+                className="rounded-full bg-stone-900 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-stone-700 dark:bg-orange-600 dark:hover:bg-orange-700"
               >
                 {t("nav.sign_in")}
               </Link>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Row 2: Navigation links — equal width, text stacks on mobile */}
-      <div className="border-t border-zinc-100 dark:border-zinc-800/50">
-        <div className="mx-auto max-w-6xl px-2 sm:px-4">
-          <div className="grid py-1" style={{ gridTemplateColumns: `repeat(${navLinks.length}, 1fr)` }}>
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`rounded-md px-1 py-1.5 text-center text-[11px] leading-tight sm:text-sm sm:leading-normal font-medium transition-colors ${
-                  isLinkActive(link.match)
-                    ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
-                    : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-                }`}
-              >
-                {/* Mobile: stacked text, Desktop: single line */}
-                <span className="sm:hidden whitespace-pre-line">{link.label}</span>
-                <span className="hidden sm:inline">{link.shortLabel}</span>
-              </Link>
-            ))}
+            )}
           </div>
         </div>
-      </div>
-    </nav>
+      </header>
+
+      <nav
+        aria-label="Mobile primary"
+        className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-5 border-t border-orange-100 bg-[#fffaf4]/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl md:hidden dark:border-stone-800 dark:bg-stone-950/95"
+      >
+        {navigation.map((item) => {
+          if (item.key === "create") {
+            return (
+              <div key={item.key} className="-mt-7 flex justify-center">
+                <CreateMenu className="inline-flex min-h-12 rounded-full px-4 shadow-lg" />
+              </div>
+            );
+          }
+
+          if (item.key === "cart") {
+            return (
+              <span
+                key={item.key}
+                aria-disabled="true"
+                title={t("nav.cart_coming_soon")}
+                className="flex cursor-not-allowed flex-col items-center gap-0.5 py-1 text-[11px] font-medium text-emerald-700 opacity-55 dark:text-emerald-300"
+              >
+                <span className="text-base" aria-hidden>{ICONS[item.key]}</span>
+                {t(LABEL_KEYS[item.key])}
+              </span>
+            );
+          }
+
+          return (
+            <Link
+              key={item.key}
+              href={item.href ?? "/market"}
+              aria-current={item.active ? "page" : undefined}
+              className={`flex flex-col items-center gap-0.5 py-1 text-[11px] font-medium transition-colors ${
+                item.active
+                  ? "text-orange-700 dark:text-orange-300"
+                  : "text-stone-500 dark:text-stone-400"
+              }`}
+            >
+              <span className="text-base" aria-hidden>{ICONS[item.key]}</span>
+              {t(LABEL_KEYS[item.key])}
+            </Link>
+          );
+        })}
+      </nav>
+    </>
   );
 }

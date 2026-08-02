@@ -21,7 +21,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "JuFAN 煮饭",
+  title: "Chef HideOut 私厨",
   description: "Family recipe collection, meal planning & grocery lists",
 };
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useLanguage } from "@/lib/i18n/language-context";
 import { REPORT_REASONS } from "@/lib/types";
 
 interface ReportRecipeButtonProps {
@@ -15,6 +16,8 @@ interface ReportRecipeButtonProps {
  */
 export function ReportRecipeButton({ recipeId }: ReportRecipeButtonProps) {
   const supabase = createClient();
+  const { locale } = useLanguage();
+  const zh = locale === "zh";
   const [userId, setUserId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState<string>("copyright");
@@ -54,7 +57,7 @@ export function ReportRecipeButton({ recipeId }: ReportRecipeButtonProps) {
   if (submitted) {
     return (
       <p className="text-xs text-emerald-700 dark:text-emerald-400">
-        ✓ Thanks — our team will review this report within 48 hours.
+        {zh ? "✓ 感谢反馈——我们会在 48 小时内处理此举报。" : "✓ Thanks — our team will review this report within 48 hours."}
       </p>
     );
   }
@@ -66,7 +69,7 @@ export function ReportRecipeButton({ recipeId }: ReportRecipeButtonProps) {
         onClick={() => setOpen(true)}
         className="text-xs text-zinc-400 underline-offset-2 hover:text-red-600 hover:underline dark:hover:text-red-400"
       >
-        ⚑ Report this recipe
+        {zh ? "⚑ 举报此食谱" : "⚑ Report this recipe"}
       </button>
     );
   }
@@ -74,8 +77,11 @@ export function ReportRecipeButton({ recipeId }: ReportRecipeButtonProps) {
   if (!userId) {
     return (
       <p className="text-xs text-zinc-500">
-        <a href="/login" className="text-indigo-600 hover:underline">Sign in</a>{" "}
-        to report this recipe.
+        {zh ? (
+          <><a href="/login" className="text-indigo-600 hover:underline">登录</a>后即可举报此食谱。</>
+        ) : (
+          <><a href="/login" className="text-indigo-600 hover:underline">Sign in</a> to report this recipe.</>
+        )}
       </p>
     );
   }
@@ -86,7 +92,7 @@ export function ReportRecipeButton({ recipeId }: ReportRecipeButtonProps) {
       className="mt-2 max-w-md rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900"
     >
       <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-        Report this recipe
+        {zh ? "举报此食谱" : "Report this recipe"}
       </p>
       <select
         value={reason}
@@ -95,14 +101,16 @@ export function ReportRecipeButton({ recipeId }: ReportRecipeButtonProps) {
       >
         {REPORT_REASONS.map((r) => (
           <option key={r.value} value={r.value}>
-            {r.label}
+            {zh
+              ? ({ copyright: "版权 / 知识产权", inappropriate: "不当内容", spam: "垃圾信息", other: "其他" }[r.value] ?? r.label)
+              : r.label}
           </option>
         ))}
       </select>
       <textarea
         value={details}
         onChange={(e) => setDetails(e.target.value)}
-        placeholder="Optional details — e.g. a link to your original content"
+        placeholder={zh ? "补充说明（选填）——例如你的原创内容链接" : "Optional details — e.g. a link to your original content"}
         rows={2}
         className="mt-2 w-full rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-xs text-zinc-900 placeholder-zinc-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
       />
@@ -113,14 +121,14 @@ export function ReportRecipeButton({ recipeId }: ReportRecipeButtonProps) {
           disabled={submitting}
           className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
         >
-          {submitting ? "Submitting..." : "Submit report"}
+          {submitting ? (zh ? "提交中..." : "Submitting...") : (zh ? "提交举报" : "Submit report")}
         </button>
         <button
           type="button"
           onClick={() => setOpen(false)}
           className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
         >
-          Cancel
+          {zh ? "取消" : "Cancel"}
         </button>
       </div>
     </form>

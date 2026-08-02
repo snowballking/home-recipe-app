@@ -1,6 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useLanguage } from "@/lib/i18n/language-context";
+import {
+  translateCuisine,
+  translateDietaryTag,
+  translateDifficulty,
+  translateMealType,
+} from "@/lib/i18n/translations";
 import type { Recipe, Ingredient } from "@/lib/types";
 
 interface RecipeContentProps {
@@ -103,6 +110,118 @@ export function RecipeIngredients({ recipe }: RecipeContentProps) {
         </table>
       </div>
     </div>
+  );
+}
+
+/** Inline locale-branching text for server-rendered chrome (same pattern as the
+ *  "用量/Amount" table headers above). */
+export function Tr({ en, zh }: { en: string; zh: string }) {
+  const { locale } = useLanguage();
+  return <>{locale === "zh" ? zh : en}</>;
+}
+
+/** Translated difficulty value (e.g. "beginner" → 入门). */
+export function RecipeDifficultyValue({ value }: { value: string }) {
+  const { locale } = useLanguage();
+  return <>{translateDifficulty(value, locale)}</>;
+}
+
+/** Translated cuisine value (e.g. "Chinese" → 中餐). */
+export function TrCuisine({ value }: { value: string }) {
+  const { locale } = useLanguage();
+  return <>{translateCuisine(value, locale)}</>;
+}
+
+/** Translated meal-type value (e.g. "dinner" → 晚餐). */
+export function TrMealType({ value }: { value: string }) {
+  const { locale } = useLanguage();
+  return <>{translateMealType(value, locale)}</>;
+}
+
+/** Translated dietary tag (e.g. "Vegetarian" → 素食). */
+export function TrDietaryTag({ value }: { value: string }) {
+  const { locale } = useLanguage();
+  return <>{translateDietaryTag(value, locale)}</>;
+}
+
+/** Owner sees Edit; logged-in non-owners see the fork button. */
+export function RecipeActions({
+  recipeId,
+  isOwner,
+  isLoggedIn,
+}: {
+  recipeId: string;
+  isOwner: boolean;
+  isLoggedIn: boolean;
+}) {
+  const { t } = useLanguage();
+  if (isOwner) {
+    return (
+      <Link
+        href={`/dashboard/recipes/${recipeId}/edit`}
+        className="shrink-0 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-300"
+      >
+        {t("recipe.edit")}
+      </Link>
+    );
+  }
+  if (isLoggedIn) {
+    return (
+      <Link
+        href={`/dashboard/recipes/new?fork=${recipeId}`}
+        className="shrink-0 rounded-lg border border-violet-300 px-3 py-1.5 text-sm font-medium text-violet-700 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-300 dark:hover:bg-violet-950/40"
+      >
+        {t("fork.make_it_your_own")}
+      </Link>
+    );
+  }
+  return null;
+}
+
+/** "Variation of …" banner shown on a fork, linking back to the original. */
+export function ForkBanner({
+  parentId,
+  title,
+  titleZh,
+  author,
+  note,
+}: {
+  parentId: string;
+  title: string | null;
+  titleZh: string | null;
+  author: string | null;
+  note: string | null;
+}) {
+  const { t, locale } = useLanguage();
+  const zh = locale === "zh";
+  const displayTitle = (zh && titleZh) || title;
+  return (
+    <Link
+      href={`/recipe/${parentId}`}
+      className="mt-4 block rounded-lg border border-violet-200 bg-violet-50 p-4 hover:bg-violet-100/70 dark:border-violet-800 dark:bg-violet-950/40 dark:hover:bg-violet-950/60"
+    >
+      <p className="text-xs font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">
+        {t("fork.variation_of")}
+      </p>
+      <p className="mt-1 text-sm font-medium text-violet-700 dark:text-violet-300">
+        {zh ? (
+          <>
+            改编自{author ? ` ${author} ` : ""}的「{displayTitle ?? "另一道食谱"}」
+          </>
+        ) : (
+          <>
+            Based on {displayTitle ?? "another recipe"}
+            {author && <> by {author}</>}
+          </>
+        )}
+        <span className="ml-1 text-violet-400">&#8599;</span>
+      </p>
+      {note && (
+        <p className="mt-1.5 text-[13px] text-violet-600 dark:text-violet-300">
+          <span className="font-medium">{t("fork.what_changed")}</span> {note}
+        </p>
+      )}
+    </Link>
   );
 }
 

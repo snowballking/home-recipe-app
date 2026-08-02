@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useLanguage } from "@/lib/i18n/language-context";
 
 interface SaveRecipeButtonProps {
   recipeId: string;
@@ -11,6 +12,7 @@ interface SaveRecipeButtonProps {
 
 export function SaveRecipeButton({ recipeId, saveCount, variant = "full" }: SaveRecipeButtonProps) {
   const supabase = createClient();
+  const { locale } = useLanguage();
   const [isSaved, setIsSaved] = useState(false);
   const [count, setCount] = useState(saveCount);
   const [loading, setLoading] = useState(true);
@@ -91,7 +93,9 @@ export function SaveRecipeButton({ recipeId, saveCount, variant = "full" }: Save
           : "bg-indigo-600 text-white hover:bg-indigo-700"
       } disabled:opacity-50`}
     >
-      {isSaved ? "♥ Saved" : "♡ Save to Collection"} ({count})
+      {locale === "zh"
+        ? (isSaved ? "♥ 已收藏" : "♡ 收藏")
+        : (isSaved ? "♥ Saved" : "♡ Save to Collection")} ({count})
     </button>
   );
 }

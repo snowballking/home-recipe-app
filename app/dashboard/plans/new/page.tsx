@@ -3,11 +3,14 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { DURATION_OPTIONS } from "@/lib/types";
+import { DURATION_OPTIONS, MEAL_PLAN_FESTIVALS, type MealPlanFestival } from "@/lib/types";
+import { useLanguage } from "@/lib/i18n/language-context";
+import { translateFestival } from "@/lib/i18n/translations";
 
 export default function NewMealPlanPage() {
   const router = useRouter();
   const supabase = createClient();
+  const { locale, t } = useLanguage();
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -18,6 +21,7 @@ export default function NewMealPlanPage() {
   const [durationType, setDurationType] = useState<"1_week" | "2_weeks" | "3_weeks" | "1_month">("1_week");
   const [startDate, setStartDate] = useState("");
   const [isPublic, setIsPublic] = useState(false);
+  const [festival, setFestival] = useState<MealPlanFestival | "">("");
 
   // Approver picker state
   const [approverSearch, setApproverSearch] = useState("");
@@ -101,6 +105,7 @@ export default function NewMealPlanPage() {
         end_date: endDate,
         status: "draft",
         is_public: isPublic,
+        festival: festival || null,
         approver_id: selectedApprover?.id ?? null,
       })
       .select("id")
@@ -159,6 +164,24 @@ export default function NewMealPlanPage() {
               rows={3}
               className={inputClass}
             />
+          </div>
+
+          {/* Festive / seasonal category */}
+          <div>
+            <label className={labelClass}>{t("festival.label")}</label>
+            <p className="mb-2 text-xs text-zinc-500">{t("festival.helper")}</p>
+            <select
+              value={festival}
+              onChange={(e) => setFestival(e.target.value as MealPlanFestival | "")}
+              className={inputClass}
+            >
+              <option value="">{t("festival.none")}</option>
+              {MEAL_PLAN_FESTIVALS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.icon} {translateFestival(option.value, locale)}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Duration & Start Date */}

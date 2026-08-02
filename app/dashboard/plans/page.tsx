@@ -7,6 +7,7 @@ import Link from "next/link";
 import type { MealPlan } from "@/lib/types";
 import { CollectionToggle } from "@/app/components/collection-toggle";
 import { useLanguage } from "@/lib/i18n/language-context";
+import { MealPlanFestivalBadge } from "@/app/components/meal-plan-festival-badge";
 
 function formatDateRange(startDate: string, endDate: string, locale: string): string {
   const dateLocale = locale === "zh" ? "zh-CN" : "en-US";
@@ -214,6 +215,7 @@ export default function MyPlansPage() {
                       </div>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
+                      {plan.festival && <MealPlanFestivalBadge festival={plan.festival} />}
                       {badge && (
                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${badge.color}`}>
                           {badge.label}
@@ -274,6 +276,7 @@ export default function MyPlansPage() {
 
                   {/* Badges row */}
                   <div className="mt-4 flex flex-wrap gap-2">
+                    {plan.festival && <MealPlanFestivalBadge festival={plan.festival} />}
                     <span
                       className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusBadgeColor(plan.status)}`}
                     >

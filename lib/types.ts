@@ -83,6 +83,8 @@ export interface Recipe {
   source_url: string | null;
   is_public: boolean;
   original_recipe_id: string | null;
+  variation_note: string | null;
+  variation_diff: unknown | null;
   avg_rating: number;
   rating_count: number;
   save_count: number;
@@ -104,6 +106,14 @@ export interface Recipe {
 export type DurationType = "1_week" | "2_weeks" | "3_weeks" | "1_month";
 export type PlanStatus = "draft" | "finalized";
 export type SlotMealType = "breakfast" | "lunch" | "dinner" | "snack";
+export type MealPlanFestival =
+  | "lunar_new_year"
+  | "hari_raya"
+  | "deepavali"
+  | "mid_autumn"
+  | "christmas"
+  | "ramadan"
+  | "new_year";
 
 export type ApprovalStatus = "pending_approval" | "approved" | "changes_requested";
 
@@ -117,6 +127,7 @@ export interface MealPlan {
   end_date: string;
   status: PlanStatus;
   is_public: boolean;
+  festival: MealPlanFestival | null;
   notes: string | null;
   comment_count: number;
   approver_id: string | null;
@@ -382,6 +393,23 @@ export const DURATION_OPTIONS = [
   { value: "3_weeks", label: "3 Weeks", days: 21 },
   { value: "1_month", label: "1 Month", days: 30 },
 ] as const;
+
+// Stored as a nullable TEXT column (`festival`) on meal plans. The list is
+// intentionally finite for reliable Market filtering, but can be extended by
+// adding a migration, a translation, and an option here.
+export const MEAL_PLAN_FESTIVALS = [
+  { value: "lunar_new_year", label: "Lunar New Year", icon: "🧧" },
+  { value: "hari_raya", label: "Hari Raya", icon: "🌙" },
+  { value: "deepavali", label: "Deepavali", icon: "🪔" },
+  { value: "mid_autumn", label: "Mid-Autumn Festival", icon: "🥮" },
+  { value: "christmas", label: "Christmas", icon: "🎄" },
+  { value: "ramadan", label: "Ramadan", icon: "✨" },
+  { value: "new_year", label: "New Year", icon: "🎉" },
+] as const satisfies ReadonlyArray<{
+  value: MealPlanFestival;
+  label: string;
+  icon: string;
+}>;
 
 export const AGE_GROUPS = [
   { value: "toddler", label: "Toddler (1-3 years)" },

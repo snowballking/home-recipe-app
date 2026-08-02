@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useLanguage } from "@/lib/i18n/language-context";
 import type { Comment } from "@/lib/types";
 
 interface CommentSectionProps {
@@ -10,6 +11,8 @@ interface CommentSectionProps {
 }
 
 export function CommentSection({ recipeId, recipeOwnerId }: CommentSectionProps) {
+  const { locale } = useLanguage();
+  const zh = locale === "zh";
   const supabase = createClient();
   const [comments, setComments] = useState<Comment[]>([]);
   const [body, setBody] = useState("");
@@ -139,7 +142,7 @@ export function CommentSection({ recipeId, recipeOwnerId }: CommentSectionProps)
               <span className="text-xs text-zinc-400">{timeAgo(comment.created_at)}</span>
               {comment.is_pinned && (
                 <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-950 dark:text-amber-300">
-                  Pinned
+                  {zh ? "置顶" : "Pinned"}
                 </span>
               )}
             </div>
@@ -163,7 +166,7 @@ export function CommentSection({ recipeId, recipeOwnerId }: CommentSectionProps)
                   onClick={() => setReplyTo(comment.id)}
                   className="text-xs text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400"
                 >
-                  Reply
+                  {zh ? "回复" : "Reply"}
                 </button>
               )}
               {userId === comment.user_id && (
@@ -171,7 +174,7 @@ export function CommentSection({ recipeId, recipeOwnerId }: CommentSectionProps)
                   onClick={() => handleDelete(comment.id)}
                   className="text-xs text-zinc-500 hover:text-red-600"
                 >
-                  Delete
+                  {zh ? "删除" : "Delete"}
                 </button>
               )}
               {userId === recipeOwnerId && userId !== comment.user_id && (
@@ -179,7 +182,7 @@ export function CommentSection({ recipeId, recipeOwnerId }: CommentSectionProps)
                   onClick={() => handlePin(comment.id, comment.is_pinned)}
                   className="text-xs text-zinc-500 hover:text-amber-600"
                 >
-                  {comment.is_pinned ? "Unpin" : "Pin"}
+                  {comment.is_pinned ? (zh ? "取消置顶" : "Unpin") : (zh ? "置顶" : "Pin")}
                 </button>
               )}
             </div>
@@ -196,7 +199,7 @@ export function CommentSection({ recipeId, recipeOwnerId }: CommentSectionProps)
   return (
     <div>
       <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-        Comments ({comments.reduce((acc, c) => acc + 1 + (c.replies?.length ?? 0), 0)})
+        {zh ? "评论" : "Comments"} ({comments.reduce((acc, c) => acc + 1 + (c.replies?.length ?? 0), 0)})
       </h3>
 
       {/* Comment form */}
@@ -204,17 +207,17 @@ export function CommentSection({ recipeId, recipeOwnerId }: CommentSectionProps)
         <form onSubmit={handleSubmit} className="mt-4">
           {/* Engagement prompt */}
           <div className="mb-3 rounded-lg border border-indigo-100 bg-indigo-50/70 px-3 py-2 text-xs text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950/30 dark:text-indigo-300">
-            Cooked this? Share a photo of how it turned out 📸
+            {zh ? "做过这道菜？分享一张成品照吧 📸" : "Cooked this? Share a photo of how it turned out 📸"}
           </div>
           {replyTo && (
             <div className="mb-2 flex items-center gap-2 text-xs text-zinc-500">
-              <span>Replying to a comment</span>
+              <span>{zh ? "正在回复评论" : "Replying to a comment"}</span>
               <button
                 type="button"
                 onClick={() => setReplyTo(null)}
                 className="text-red-500 hover:text-red-700"
               >
-                Cancel
+                {zh ? "取消" : "Cancel"}
               </button>
             </div>
           )}
@@ -222,7 +225,7 @@ export function CommentSection({ recipeId, recipeOwnerId }: CommentSectionProps)
             <textarea
               value={body}
               onChange={(e) => setBody(e.target.value)}
-              placeholder="Share your thoughts or tips..."
+              placeholder={zh ? "分享你的想法或小贴士..." : "Share your thoughts or tips..."}
               rows={2}
               className="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500"
             />
@@ -231,7 +234,7 @@ export function CommentSection({ recipeId, recipeOwnerId }: CommentSectionProps)
               disabled={(!body.trim() && !photoUrl) || loading}
               className="self-end rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
             >
-              {loading ? "..." : "Post"}
+              {loading ? "..." : zh ? "发布" : "Post"}
             </button>
           </div>
 
@@ -262,7 +265,7 @@ export function CommentSection({ recipeId, recipeOwnerId }: CommentSectionProps)
                 disabled={uploadingPhoto}
                 className="text-xs text-zinc-500 hover:text-indigo-600 disabled:opacity-50 dark:hover:text-indigo-400"
               >
-                {uploadingPhoto ? "Uploading photo..." : "📷 Add photo"}
+                {uploadingPhoto ? (zh ? "照片上传中..." : "Uploading photo...") : (zh ? "📷 添加照片" : "📷 Add photo")}
               </button>
             )}
             <input
@@ -276,7 +279,11 @@ export function CommentSection({ recipeId, recipeOwnerId }: CommentSectionProps)
         </form>
       ) : (
         <p className="mt-4 text-sm text-zinc-500">
-          <a href="/login" className="text-indigo-600 hover:underline">Sign in</a> to leave a comment.
+          {zh ? (
+            <><a href="/login" className="text-indigo-600 hover:underline">登录</a>后即可评论。</>
+          ) : (
+            <><a href="/login" className="text-indigo-600 hover:underline">Sign in</a> to leave a comment.</>
+          )}
         </p>
       )}
 
@@ -284,7 +291,7 @@ export function CommentSection({ recipeId, recipeOwnerId }: CommentSectionProps)
       <div className="mt-4 divide-y divide-zinc-100 dark:divide-zinc-800">
         {comments.length === 0 ? (
           <p className="py-6 text-center text-sm text-zinc-400">
-            No comments yet — cooked it? Be the first to share a photo or tip!
+            {zh ? "还没有评论——做过这道菜？来当第一个分享照片或心得的人吧！" : "No comments yet — cooked it? Be the first to share a photo or tip!"}
           </p>
         ) : (
           comments.map((comment) => (

@@ -1,189 +1,154 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
 import { NavBar } from "@/app/components/nav-bar";
-import { StarRating } from "@/app/components/star-rating";
-import type { Recipe } from "@/lib/types";
+import { RecipeCard } from "@/app/components/recipe-card";
+import { filterDiscoverRecipes } from "@/lib/feed";
 import { useLanguage } from "@/lib/i18n/language-context";
+import { translateCategory } from "@/lib/i18n/translations";
+import { createClient } from "@/lib/supabase/client";
+import { RECIPE_CATEGORIES } from "@/lib/types";
+import type { Recipe, RecipeCategory } from "@/lib/types";
 
-type DeckRecipe = Recipe & {
+type PublicRecipe = Recipe & {
   profiles?: { displayname: string | null } | null;
-  chefs?: { id: string; name: string } | null;
 };
+
+type DiscoverMode = "latest" | "popular";
 
 export default function DiscoverPage() {
   const supabase = createClient();
   const { locale, t } = useLanguage();
-  const [recipes, setRecipes] = useState<DeckRecipe[]>([]);
-  const [mode, setMode] = useState<"latest" | "popular">("latest");
-  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
-  const [userId, setUserId] = useState<string | null>(null);
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState<RecipeCategory>("all");
+  const [mode, setMode] = useState<DiscoverMode>("latest");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    (async () => {
+    async function loadRecipes() {
+      setLoading(true);
       const { data } = await supabase
         .from("recipes")
-        .select("*, profiles(displayname), chefs(id, name)")
+        .select("*, profiles(displayname)")
         .eq("is_public", true)
         .order("created_at", { ascending: false })
         .limit(100);
-      setRecipes((data as DeckRecipe[]) ?? []);
 
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          setUserId(user.id);
-          const { data: saves } = await supabase
-            .from("recipe_saves")
-            .select("recipe_id")
-            .eq("user_id", user.id);
-          setSavedIds(new Set((saves ?? []).map((s) => s.recipe_id)));
-        }
-      } catch {
-        // Auth lock race — safe to ignore
-      }
+      setRecipes(((data ?? []) as PublicRecipe[]).map((recipe) => ({
+        ...recipe,
+        author_name: recipe.profiles?.displayname ?? "Anonymous",
+      })));
       setLoading(false);
-    })();
+    }
+
+    void loadRecipes();
+    // The browser client is stable for the lifetime of this page.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const deck = useMemo(() => {
-    if (mode === "latest") return recipes;
-    // Popular = what users are saving / rating / commenting on (no view tracking)
-    return [...recipes].sort((a, b) => {
-      const score = (r: DeckRecipe) =>
-        (r.save_count ?? 0) * 3 + (r.rating_count ?? 0) * 2 + (r.comment_count ?? 0);
-      return score(b) - score(a) || (b.avg_rating ?? 0) - (a.avg_rating ?? 0);
-    });
-  }, [recipes, mode]);
+  const visibleRecipes = useMemo(() => {
+    const searched = filterDiscoverRecipes(recipes, search);
+    const categorised = category === "all"
+      ? searched
+      : searched.filter((recipe) => recipe.category === category);
 
-  async function toggleSave(recipeId: string) {
-    if (!userId) {
-      window.location.href = "/login";
-      return;
-    }
-    if (savedIds.has(recipeId)) {
-      await supabase.from("recipe_saves").delete().eq("user_id", userId).eq("recipe_id", recipeId);
-      setSavedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(recipeId);
-        return next;
-      });
-    } else {
-      await supabase.from("recipe_saves").insert({ user_id: userId, recipe_id: recipeId });
-      setSavedIds((prev) => new Set(prev).add(recipeId));
-    }
-  }
+    if (mode === "latest") return categorised;
+    return [...categorised].sort((a, b) => {
+      const score = (recipe: Recipe) =>
+        recipe.save_count * 3 + recipe.rating_count * 2 + recipe.comment_count;
+      return score(b) - score(a) || b.avg_rating - a.avg_rating;
+    });
+  }, [recipes, search, category, mode]);
+
+  const categories = RECIPE_CATEGORIES.filter((item) => item.value !== "all");
 
   return (
-    <div className="flex h-dvh flex-col bg-zinc-950">
+    <div className="min-h-full bg-[#fffaf4] pb-20 dark:bg-stone-950 md:pb-8">
       <NavBar />
 
-      <div className="relative flex-1 overflow-hidden">
-        {/* Latest / Popular toggle — floats over the deck */}
-        <div className="absolute left-1/2 top-3 z-20 flex -translate-x-1/2 gap-1 rounded-full bg-black/50 p-1 backdrop-blur">
-          {(["latest", "popular"] as const).map((m) => (
+      <main className="mx-auto max-w-6xl px-4 py-7 sm:py-10">
+        <section className="rounded-[2rem] bg-stone-950 px-5 py-7 text-white shadow-[0_18px_55px_rgba(62,37,16,0.18)] sm:px-8 sm:py-9">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-orange-300">{t("nav.discover")}</p>
+          <h1 className="mt-2 max-w-xl text-3xl font-bold tracking-[-0.045em] sm:text-4xl">{t("discover.title")}</h1>
+          <p className="mt-2 max-w-lg text-sm leading-6 text-stone-300">{t("discover.subtitle")}</p>
+          <label className="mt-6 flex items-center gap-3 rounded-2xl bg-white px-4 py-3 text-stone-900 shadow-sm focus-within:ring-2 focus-within:ring-orange-400">
+            <span aria-hidden className="text-lg text-orange-600">⌕</span>
+            <span className="sr-only">{t("market.search")}</span>
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={t("discover.search")}
+              className="min-w-0 flex-1 bg-transparent text-sm font-medium placeholder:text-stone-400 focus:outline-none"
+            />
+          </label>
+        </section>
+
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-1 flex-wrap gap-2">
             <button
-              key={m}
-              onClick={() => setMode(m)}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                mode === m ? "bg-white text-zinc-900" : "text-white/80 hover:text-white"
+              type="button"
+              onClick={() => setCategory("all")}
+              aria-pressed={category === "all"}
+              className={`shrink-0 rounded-full px-3.5 py-2 text-sm font-semibold transition-colors ${
+                category === "all"
+                  ? "bg-orange-600 text-white"
+                  : "bg-white text-stone-600 ring-1 ring-orange-100 hover:bg-orange-50 dark:bg-stone-900 dark:text-stone-300 dark:ring-stone-800"
               }`}
             >
-              {m === "latest" ? t("discover.latest") : t("discover.popular")}
+              {t("market.all")}
             </button>
-          ))}
+            {categories.map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                onClick={() => setCategory(category === item.value ? "all" : item.value)}
+                aria-pressed={category === item.value}
+                className={`shrink-0 rounded-full px-3.5 py-2 text-sm font-semibold transition-colors ${
+                  category === item.value
+                    ? "bg-orange-600 text-white"
+                    : "bg-white text-stone-600 ring-1 ring-orange-100 hover:bg-orange-50 dark:bg-stone-900 dark:text-stone-300 dark:ring-stone-800"
+                }`}
+              >
+                {item.icon} {translateCategory(item.value, locale)}
+              </button>
+            ))}
+          </div>
+
+          <div className="inline-flex shrink-0 rounded-full bg-orange-100/80 p-1 dark:bg-stone-900">
+            {(["latest", "popular"] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setMode(option)}
+                aria-pressed={mode === option}
+                className={`rounded-full px-3 py-1.5 text-sm font-semibold transition-colors ${
+                  mode === option
+                    ? "bg-white text-orange-700 shadow-sm dark:bg-stone-800 dark:text-orange-300"
+                    : "text-stone-600 dark:text-stone-400"
+                }`}
+              >
+                {option === "latest" ? t("discover.latest") : t("discover.popular")}
+              </button>
+            ))}
+          </div>
         </div>
 
         {loading ? (
-          <p className="mt-20 text-center text-sm text-zinc-400">...</p>
-        ) : deck.length === 0 ? (
-          <p className="mt-20 text-center text-sm text-zinc-400">{t("discover.empty")}</p>
-        ) : (
-          <div className="h-full snap-y snap-mandatory overflow-y-auto">
-            {deck.map((r, i) => {
-              const title = locale === "zh" && r.title_zh ? r.title_zh : r.title;
-              const byline = r.chefs?.name ?? r.profiles?.displayname ?? null;
-              const saved = savedIds.has(r.id);
-              return (
-                <section key={r.id} className="relative h-full w-full snap-start overflow-hidden">
-                  {/* Background photo */}
-                  {r.hero_image_url ? (
-                    <img
-                      src={r.hero_image_url}
-                      alt={title}
-                      loading={i === 0 ? "eager" : "lazy"}
-                      className="absolute inset-0 h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-indigo-900 to-zinc-900 text-8xl">
-                      🍽
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/40" />
-
-                  {r.image_source === "ai_generated" && (
-                    <span className="absolute right-3 top-16 z-10 rounded-full bg-indigo-600/90 px-2 py-0.5 text-[10px] font-semibold text-white">
-                      ✨ {t("recipe_card.ai_image")}
-                    </span>
-                  )}
-
-                  {/* Info + actions */}
-                  <div className="absolute inset-x-0 bottom-0 z-10 p-5 pb-8">
-                    <h2 className="text-2xl font-bold text-white drop-shadow">{title}</h2>
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      {r.cuisine && (
-                        <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-medium text-white backdrop-blur">
-                          {r.cuisine}
-                        </span>
-                      )}
-                      <StarRating rating={r.avg_rating} count={r.rating_count} size="sm" />
-                    </div>
-                    {byline && (
-                      <p className="mt-1.5 text-sm text-white/80">
-                        {t("recipe.by_chef")}{" "}
-                        {r.chefs ? (
-                          <Link href={`/chefs/${r.chefs.id}`} className="font-medium underline">
-                            {byline}
-                          </Link>
-                        ) : (
-                          <span className="font-medium">{byline}</span>
-                        )}
-                      </p>
-                    )}
-                    <div className="mt-4 flex gap-3">
-                      <button
-                        onClick={() => toggleSave(r.id)}
-                        className={`rounded-lg px-5 py-2.5 text-sm font-semibold transition-colors ${
-                          saved
-                            ? "bg-rose-600 text-white"
-                            : "bg-white/20 text-white backdrop-blur hover:bg-white/30"
-                        }`}
-                      >
-                        {saved ? t("discover.saved") : t("discover.save")}
-                      </button>
-                      <Link
-                        href={`/recipe/${r.id}`}
-                        className="rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-zinc-900 hover:bg-zinc-100"
-                      >
-                        {t("discover.open")}
-                      </Link>
-                    </div>
-                    {i === 0 && deck.length > 1 && (
-                      <p className="mt-4 animate-bounce text-center text-xs text-white/60">
-                        ↑ {t("discover.swipe_hint")}
-                      </p>
-                    )}
-                  </div>
-                </section>
-              );
-            })}
+          <div className="py-16 text-center">
+            <div className="mx-auto h-7 w-7 animate-spin rounded-full border-2 border-orange-200 border-t-orange-600" />
           </div>
+        ) : visibleRecipes.length > 0 ? (
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
+            {visibleRecipes.map((recipe) => <RecipeCard key={recipe.id} recipe={recipe} showAuthor />)}
+          </div>
+        ) : (
+          <section className="mt-8 rounded-3xl border border-dashed border-orange-200 bg-orange-50/50 px-6 py-12 text-center dark:border-orange-900 dark:bg-orange-950/20">
+            <div className="text-4xl" aria-hidden>🔎</div>
+            <p className="mt-4 text-sm text-stone-600 dark:text-stone-300">{search ? t("discover.no_matches") : t("discover.empty")}</p>
+          </section>
         )}
-      </div>
+      </main>
     </div>
   );
 }

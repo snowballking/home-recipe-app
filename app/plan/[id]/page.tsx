@@ -6,6 +6,7 @@ import { DishChip } from "./dish-chip";
 import { MealLabel } from "./meal-label";
 import Link from "next/link";
 import type { MealPlan, MealPlanSlot, Recipe, Profile, NutritionSummary } from "@/lib/types";
+import { MealPlanFestivalBadge } from "@/app/components/meal-plan-festival-badge";
 
 export const dynamic = "force-dynamic";
 
@@ -130,6 +131,12 @@ export default async function PublicMealPlanPage({
           </div>
 
           {plan.description && <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">{plan.description}</p>}
+
+          {plan.festival && (
+            <div className="mt-3">
+              <MealPlanFestivalBadge festival={plan.festival} />
+            </div>
+          )}
 
           {/* Overall Plan Notes */}
           {plan.notes && (

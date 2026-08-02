@@ -4,8 +4,21 @@ import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { CUISINES, MEAL_TYPES, DIETARY_TAGS, DIFFICULTIES, RECIPE_CATEGORIES } from "@/lib/types";
-import type { Ingredient, AlternativeIngredient, ImageSource } from "@/lib/types";
+import type { Ingredient, AlternativeIngredient, ImageSource, Recipe } from "@/lib/types";
 import { canPublishRecipe } from "@/lib/recipes/publish-policy";
+import { useLanguage } from "@/lib/i18n/language-context";
+import { RecipeVariationEditor } from "@/app/components/recipe-variation-editor";
+import {
+  buildMaterializedVariationInput,
+  type VariationDiffV1,
+} from "@/lib/recipe-variation";
+import {
+  translateCategory,
+  translateCuisine,
+  translateDietaryTag,
+  translateDifficulty,
+  translateMealType,
+} from "@/lib/i18n/translations";
 
 type DetectedPlatform = "youtube" | "website" | "rednote" | "instagram" | null;
 
@@ -32,6 +45,7 @@ function NewRecipePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
+  const { t, locale } = useLanguage();
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -79,11 +93,29 @@ function NewRecipePageInner() {
   const [ingredientsZh, setIngredientsZh] = useState<Ingredient[] | null>(null);
   const [stepsZh, setStepsZh] = useState<string[] | null>(null);
 
+  // Fork / variation state (set when opened via ?fork=<id>)
+  const [forkParentId, setForkParentId] = useState<string | null>(null);
+  const [forkParentTitle, setForkParentTitle] = useState("");
+  const [forkParentTitleZh, setForkParentTitleZh] = useState<string | null>(null);
+  const [forkParentAuthor, setForkParentAuthor] = useState("");
+  const [variationNote, setVariationNote] = useState("");
+  const [forkSource, setForkSource] = useState<Recipe | null>(null);
+  const [forkLoading, setForkLoading] = useState(false);
+  const [forkLoadError, setForkLoadError] = useState("");
+
   // ── Pre-fill from ?url= query parameter (e.g. from public meal plan) ──
   useEffect(() => {
     const prefillUrl = searchParams.get("url");
     if (prefillUrl) {
       handleUrlChange(prefillUrl);
+    }
+  }, [searchParams]);
+
+  // ── Pre-fill from ?fork=<id> query parameter (make a variation) ──
+  useEffect(() => {
+    const forkId = searchParams.get("fork");
+    if (forkId) {
+      loadForkSource(forkId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
@@ -237,7 +269,39 @@ function NewRecipePageInner() {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // Load an immutable source snapshot for the variation editor. RLS returns
+  // the source only if it is public (or owned), so private recipes remain safe.
+  async function loadForkSource(forkId: string) {
+    setForkLoading(true);
+    setForkLoadError("");
+    setForkSource(null);
+
+    const { data: parent, error: forkError } = await supabase
+      .from("recipes")
+      .select("*")
+      .eq("id", forkId)
+      .single();
+    if (forkError || !parent) {
+      setForkLoadError(t("variation.source_error"));
+      setForkLoading(false);
+      return;
+    }
+
+    const source = parent as Recipe;
+    setForkSource(source);
+    setForkParentId(parent.id);
+    setForkParentTitle(parent.title ?? "");
+    setForkParentTitleZh(parent.title_zh ?? null);
+
+    const { data: author } = await supabase
+      .from("profiles")
+      .select("displayname")
+      .eq("id", parent.user_id)
+      .single();
+    setForkParentAuthor(author?.displayname ?? "");
+    setForkLoading(false);
+  }
+
   function populateForm(r: any) {
     if (r.title) setTitle(r.title);
     if (r.description) setDescription(r.description);
@@ -326,7 +390,7 @@ function NewRecipePageInner() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Failed to import recipe.");
+        setError(data.error || t("form.import_failed"));
         setImporting(false);
         return;
       }
@@ -336,11 +400,9 @@ function NewRecipePageInner() {
       setSourceUrl(importUrl.trim());
       // IP policy: imported recipes start private
       setIsPublic(false);
-      setSuccessMsg(
-        "Recipe extracted with AI. Review the details below and save! Imported recipes start private to protect the original creator's copyright — you can publish after adding your own photo or an AI-generated image."
-      );
+      setSuccessMsg(t("form.import_success"));
     } catch {
-      setError("Something went wrong while importing the recipe.");
+      setError(t("form.import_error"));
     } finally {
       setImporting(false);
     }
@@ -350,13 +412,15 @@ function NewRecipePageInner() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) {
-      setError("Recipe title is required");
+      setError(t("form.title_required"));
+      return;
+    }
+    if (forkParentId && !variationNote.trim()) {
+      setError(t("fork.note_required"));
       return;
     }
     if (isPublic && !canPublishRecipe({ imageSource, isChef }).allowed) {
-      setError(
-        "Public recipes need your own photo or an AI-generated image — imported photos can't be published. Upload a photo, generate an AI image, or set the recipe to Private."
-      );
+      setError(t("form.publish_policy_error"));
       return;
     }
     setSaving(true);
@@ -403,6 +467,8 @@ function NewRecipePageInner() {
         hero_image_url: heroImageUrl,
         image_source: heroImageUrl ? imageSource : null,
         is_public: isPublic,
+        original_recipe_id: forkParentId,
+        variation_note: forkParentId ? variationNote.trim() : null,
         calories_per_serving: caloriesPerServing,
         protein_grams: proteinGrams,
         carbs_grams: carbsGrams,
@@ -425,29 +491,134 @@ function NewRecipePageInner() {
     router.push(`/recipe/${data.id}`);
   }
 
+  async function handleVariationSave(note: string, diff: VariationDiffV1) {
+    if (!forkSource) return;
+
+    setSaving(true);
+    setError("");
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      setSaving(false);
+      router.push("/login");
+      return;
+    }
+
+    let payload;
+    try {
+      payload = buildMaterializedVariationInput(forkSource, user.id, note, diff);
+    } catch {
+      setError(t("variation.error_invalid"));
+      setSaving(false);
+      return;
+    }
+
+    const { data, error: insertError } = await supabase
+      .from("recipes")
+      .insert(payload)
+      .select("id")
+      .single();
+
+    if (insertError || !data) {
+      setError(insertError?.message ?? t("variation.save_error"));
+      setSaving(false);
+      return;
+    }
+
+    router.push(`/recipe/${data.id}`);
+  }
+
   const inputClass =
     "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500";
   const labelClass =
     "block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1";
 
   const platformBadge = detectedPlatform && PLATFORM_INFO[detectedPlatform];
+  const forkRequestId = searchParams.get("fork");
+
+  if (forkRequestId) {
+    if (forkLoading || (!forkSource && !forkLoadError)) {
+      return (
+        <div className="min-h-full bg-[#fffaf4] px-4 py-12 dark:bg-stone-950">
+          <p className="mx-auto max-w-3xl text-sm text-stone-600 dark:text-stone-300">
+            {t("variation.loading")}
+          </p>
+        </div>
+      );
+    }
+
+    if (forkLoadError || !forkSource) {
+      return (
+        <div className="min-h-full bg-[#fffaf4] px-4 py-12 dark:bg-stone-950">
+          <div className="mx-auto max-w-3xl rounded-3xl border border-red-200 bg-white p-6 dark:border-red-900 dark:bg-stone-900">
+            <p role="alert" className="text-sm text-red-700 dark:text-red-300">
+              {forkLoadError || t("variation.source_error")}
+            </p>
+            <button type="button" onClick={() => router.back()} className="mt-4 rounded-full border border-stone-200 px-4 py-2 text-sm font-semibold text-stone-700 dark:border-stone-700 dark:text-stone-200">
+              {t("common.cancel")}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <RecipeVariationEditor
+        source={forkSource}
+        sourceAuthor={forkParentAuthor}
+        saving={saving}
+        error={error}
+        onSave={handleVariationSave}
+        onCancel={() => router.back()}
+      />
+    );
+  }
 
   return (
     <div className="min-h-full bg-zinc-50 dark:bg-zinc-950">
       <div className="mx-auto max-w-2xl px-4 py-8">
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-          Add New Recipe
+          {forkParentId ? t("fork.form_heading") : t("form.add_new_recipe")}
         </h1>
 
+        {/* Fork banner: making a variation of an existing recipe */}
+        {forkParentId && (
+          <div className="mt-6 rounded-xl border border-violet-200 bg-violet-50 p-4 dark:border-violet-800 dark:bg-violet-950/40">
+            <p className="text-sm text-violet-800 dark:text-violet-200">
+              {locale === "zh" ? (
+                <>
+                  🔀 正在改编
+                  {forkParentAuthor && <> <span className="font-semibold">{forkParentAuthor}</span> 的</>}
+                  「<span className="font-semibold">{forkParentTitleZh || forkParentTitle}</span>」
+                </>
+              ) : (
+                <>
+                  🔀 Making a variation of{" "}
+                  <span className="font-semibold">{forkParentTitle}</span>
+                  {forkParentAuthor && (
+                    <> by <span className="font-semibold">{forkParentAuthor}</span></>
+                  )}
+                </>
+              )}
+            </p>
+            <p className="mt-1 text-xs text-violet-600 dark:text-violet-400">
+              {t("fork.prefilled_hint")}
+            </p>
+          </div>
+        )}
+
         {/* ── Import from URL / Screenshot section ────────────── */}
+        {!forkParentId && (
         <div className="mt-6 rounded-xl border-2 border-dashed border-indigo-300 bg-indigo-50/50 p-5 dark:border-indigo-700 dark:bg-indigo-950/30">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">
-                Import Recipe with AI
+                {t("form.import_title")}
               </h2>
               <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                Paste a link from YouTube, recipe websites, RedNote, or Instagram
+                {t("form.import_hint")}
               </p>
             </div>
             {platformBadge && (
@@ -465,7 +636,7 @@ function NewRecipePageInner() {
               type="url"
               value={importUrl}
               onChange={(e) => handleUrlChange(e.target.value)}
-              placeholder="https://youtube.com/watch?v=... or any recipe URL"
+              placeholder={t("form.import_placeholder")}
               className="flex-1 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-indigo-700 dark:bg-zinc-800 dark:text-zinc-100"
             />
             {importUrl.trim() && (
@@ -497,11 +668,11 @@ function NewRecipePageInner() {
                       />
                     </svg>
                     {detectedPlatform === "youtube"
-                      ? "Watching video..."
-                      : "Extracting..."}
+                      ? t("form.importing_video")
+                      : t("form.importing")}
                   </span>
                 ) : (
-                  "Import"
+                  t("form.import_button")
                 )}
               </button>
             )}
@@ -510,18 +681,17 @@ function NewRecipePageInner() {
           {/* YouTube processing hint */}
           {importing && detectedPlatform === "youtube" && (
             <p className="mt-2 text-xs text-indigo-600 dark:text-indigo-400 animate-pulse">
-              AI is watching the full video to extract ingredients and steps. This may take up to 60 seconds...
+              {t("form.import_youtube_wait")}
             </p>
           )}
 
           {/* Import disclaimer (informational) */}
           <p className="mt-4 text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-            I understand that imported recipes are for <strong>personal use</strong>. The AI
-            will rephrase cooking instructions in its own words, but I am responsible for
-            ensuring I have the right to share any recipe I make public.
+            {t("form.import_disclaimer")}
           </p>
 
         </div>
+        )}
 
         {/* Error / Success messages */}
         {error && (
@@ -535,19 +705,38 @@ function NewRecipePageInner() {
           </div>
         )}
 
-        <div className="relative my-6 flex items-center">
-          <div className="flex-grow border-t border-zinc-200 dark:border-zinc-700" />
-          <span className="mx-4 shrink text-xs text-zinc-400">
-            or fill in manually
-          </span>
-          <div className="flex-grow border-t border-zinc-200 dark:border-zinc-700" />
-        </div>
+        {!forkParentId && (
+          <div className="relative my-6 flex items-center">
+            <div className="flex-grow border-t border-zinc-200 dark:border-zinc-700" />
+            <span className="mx-4 shrink text-xs text-zinc-400">
+              {t("form.or_manual")}
+            </span>
+            <div className="flex-grow border-t border-zinc-200 dark:border-zinc-700" />
+          </div>
+        )}
 
         {/* ── Recipe form ─────────────────────────────────────── */}
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Variation note — required when making a fork */}
+          {forkParentId && (
+            <div>
+              <label className={labelClass}>{t("fork.note_label")} *</label>
+              <textarea
+                value={variationNote}
+                onChange={(e) => setVariationNote(e.target.value)}
+                rows={3}
+                placeholder={t("fork.note_placeholder")}
+                className={inputClass}
+              />
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                {t("fork.note_helper")}
+              </p>
+            </div>
+          )}
+
           {/* Recipe Photo */}
           <div>
-            <label className={labelClass}>Recipe Photo *</label>
+            <label className={labelClass}>{t("form.photo")} *</label>
             {heroImageUrl ? (
               <div className="mt-1">
                 <div className="relative overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700">
@@ -558,7 +747,7 @@ function NewRecipePageInner() {
                   />
                   {imageSource === "ai_generated" && (
                     <span className="absolute bottom-2 left-2 rounded-full bg-indigo-600/90 px-2.5 py-1 text-xs font-medium text-white shadow">
-                      ✨ AI-generated image
+                      {t("form.ai_image_badge")}
                     </span>
                   )}
                   <button
@@ -566,7 +755,7 @@ function NewRecipePageInner() {
                     onClick={() => { setHeroImageUrl(null); setImageSource(null); if (imageInputRef.current) imageInputRef.current.value = ""; }}
                     className="absolute top-2 right-2 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white hover:bg-black/80 transition-colors"
                   >
-                    Remove
+                    {t("form.photo_remove")}
                   </button>
                 </div>
                 <div className="mt-2 flex items-center gap-2">
@@ -576,9 +765,9 @@ function NewRecipePageInner() {
                     disabled={uploadingImage}
                     className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 transition-colors"
                   >
-                    Replace photo
+                    {t("form.photo_replace")}
                   </button>
-                  <span className="text-[11px] text-zinc-400">or paste an image URL:</span>
+                  <span className="text-[11px] text-zinc-400">{t("form.photo_paste_url")}</span>
                   <input
                     type="url"
                     value={heroImageUrl}
@@ -602,17 +791,17 @@ function NewRecipePageInner() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                     </svg>
-                    <span className="text-sm text-indigo-600 dark:text-indigo-400">Uploading...</span>
+                    <span className="text-sm text-indigo-600 dark:text-indigo-400">{t("form.photo_uploading")}</span>
                   </>
                 ) : (
                   <>
                     <div className="text-4xl text-zinc-300 dark:text-zinc-600">📷</div>
                     <div>
                       <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                        Click to upload a photo of the dish
+                        {t("form.photo_upload")}
                       </p>
                       <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                        JPG, PNG or WebP — max 10MB. Auto-filled when importing from a URL.
+                        {t("form.photo_formats")}
                       </p>
                     </div>
                   </>
@@ -630,12 +819,12 @@ function NewRecipePageInner() {
 
           {/* Title */}
           <div>
-            <label className={labelClass}>Recipe Title *</label>
+            <label className={labelClass}>{t("form.title")} *</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g., Grandma's Chicken Curry"
+              placeholder={t("form.title_placeholder")}
               className={inputClass}
               required
             />
@@ -643,11 +832,11 @@ function NewRecipePageInner() {
 
           {/* Description */}
           <div>
-            <label className={labelClass}>Description</label>
+            <label className={labelClass}>{t("form.description")}</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="A brief description of this dish..."
+              placeholder={t("form.description_placeholder")}
               rows={2}
               className={inputClass}
             />
@@ -655,7 +844,7 @@ function NewRecipePageInner() {
 
           {/* Source URL */}
           <div>
-            <label className={labelClass}>Source URL (if imported)</label>
+            <label className={labelClass}>{t("form.source_url")}</label>
             <input
               type="url"
               value={sourceUrl}
@@ -668,7 +857,7 @@ function NewRecipePageInner() {
           {/* Quick Info Row */}
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div>
-              <label className={labelClass}>Servings</label>
+              <label className={labelClass}>{t("form.servings")}</label>
               <input
                 type="number"
                 value={servings}
@@ -678,7 +867,7 @@ function NewRecipePageInner() {
               />
             </div>
             <div>
-              <label className={labelClass}>Prep (min)</label>
+              <label className={labelClass}>{t("form.prep")}</label>
               <input
                 type="number"
                 value={prepTime}
@@ -689,7 +878,7 @@ function NewRecipePageInner() {
               />
             </div>
             <div>
-              <label className={labelClass}>Cook (min)</label>
+              <label className={labelClass}>{t("form.cook")}</label>
               <input
                 type="number"
                 value={cookTime}
@@ -700,7 +889,7 @@ function NewRecipePageInner() {
               />
             </div>
             <div>
-              <label className={labelClass}>Difficulty</label>
+              <label className={labelClass}>{t("form.difficulty")}</label>
               <select
                 value={difficulty}
                 onChange={(e) => setDifficulty(e.target.value)}
@@ -708,7 +897,7 @@ function NewRecipePageInner() {
               >
                 {DIFFICULTIES.map((d) => (
                   <option key={d.value} value={d.value}>
-                    {d.label}
+                    {translateDifficulty(d.value, locale)}
                   </option>
                 ))}
               </select>
@@ -718,46 +907,46 @@ function NewRecipePageInner() {
           {/* Category, Cuisine & Meal Type */}
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <div>
-              <label className={labelClass}>Category</label>
+              <label className={labelClass}>{t("form.category")}</label>
               <select
                 value={recipeCategory}
                 onChange={(e) => setRecipeCategory(e.target.value)}
                 className={inputClass}
               >
-                <option value="">Select category</option>
+                <option value="">{t("form.category_select")}</option>
                 {RECIPE_CATEGORIES.filter((c) => c.value !== "all").map((c) => (
                   <option key={c.value} value={c.value}>
-                    {c.icon} {c.label}
+                    {c.icon} {translateCategory(c.value, locale)}
                   </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className={labelClass}>Cuisine</label>
+              <label className={labelClass}>{t("form.cuisine")}</label>
               <select
                 value={cuisine}
                 onChange={(e) => setCuisine(e.target.value)}
                 className={inputClass}
               >
-                <option value="">Select cuisine</option>
+                <option value="">{t("form.cuisine_select")}</option>
                 {CUISINES.map((c) => (
                   <option key={c} value={c}>
-                    {c}
+                    {translateCuisine(c, locale)}
                   </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className={labelClass}>Meal Type</label>
+              <label className={labelClass}>{t("form.meal_type")}</label>
               <select
                 value={mealType}
                 onChange={(e) => setMealType(e.target.value)}
                 className={inputClass}
               >
-                <option value="">Select type</option>
+                <option value="">{t("form.meal_type_select")}</option>
                 {MEAL_TYPES.map((m) => (
                   <option key={m.value} value={m.value}>
-                    {m.label}
+                    {translateMealType(m.value, locale)}
                   </option>
                 ))}
               </select>
@@ -766,7 +955,7 @@ function NewRecipePageInner() {
 
           {/* Dietary Tags */}
           <div>
-            <label className={labelClass}>Dietary Tags</label>
+            <label className={labelClass}>{t("form.dietary_tags")}</label>
             <div className="flex flex-wrap gap-2">
               {DIETARY_TAGS.map((tag) => (
                 <button
@@ -779,7 +968,7 @@ function NewRecipePageInner() {
                       : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400"
                   }`}
                 >
-                  {tag}
+                  {translateDietaryTag(tag, locale)}
                 </button>
               ))}
             </div>
@@ -789,7 +978,7 @@ function NewRecipePageInner() {
           <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-800 dark:bg-emerald-950/30">
             <div className="flex items-center justify-between mb-2">
               <label className={`${labelClass} text-emerald-700 dark:text-emerald-300 mb-0`}>
-                Estimated Nutrition (per serving)
+                {t("form.nutrition")}
               </label>
               <button
                 type="button"
@@ -797,7 +986,7 @@ function NewRecipePageInner() {
                   setEstimatingNutrition(true);
                   try {
                     const validIngs = ingredients.filter((i) => i.name.trim());
-                    if (validIngs.length === 0) { setError("Add ingredients first before estimating nutrition."); setEstimatingNutrition(false); return; }
+                    if (validIngs.length === 0) { setError(t("form.nutrition_need_ingredients")); setEstimatingNutrition(false); return; }
                     const res = await fetch("/api/estimate-nutrition", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
@@ -811,7 +1000,7 @@ function NewRecipePageInner() {
                     setFatGrams(Math.round(data.nutrition.fat_grams));
                     setError("");
                   } catch (err: any) {
-                    setError("Error estimating nutrition: " + (err.message || "Unknown error"));
+                    setError(t("form.nutrition_error") + (err.message || "Unknown error"));
                   }
                   setEstimatingNutrition(false);
                 }}
@@ -821,31 +1010,31 @@ function NewRecipePageInner() {
                 {estimatingNutrition ? (
                   <>
                     <div className="h-3 w-3 animate-spin rounded-full border-2 border-indigo-300 border-t-indigo-600" />
-                    Estimating…
+                    {t("form.estimating")}
                   </>
                 ) : (
                   <>
                     <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
-                    Estimate with AI
+                    {t("form.estimate_ai")}
                   </>
                 )}
               </button>
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div>
-                <label className="mb-1 block text-xs text-zinc-500">Calories</label>
+                <label className="mb-1 block text-xs text-zinc-500">{t("form.calories")}</label>
                 <input type="number" value={caloriesPerServing ?? ""} onChange={(e) => setCaloriesPerServing(e.target.value ? parseInt(e.target.value) : null)} className={inputClass} />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-zinc-500">Protein (g)</label>
+                <label className="mb-1 block text-xs text-zinc-500">{t("form.protein_g")}</label>
                 <input type="number" value={proteinGrams ?? ""} onChange={(e) => setProteinGrams(e.target.value ? parseInt(e.target.value) : null)} className={inputClass} />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-zinc-500">Carbs (g)</label>
+                <label className="mb-1 block text-xs text-zinc-500">{t("form.carbs_g")}</label>
                 <input type="number" value={carbsGrams ?? ""} onChange={(e) => setCarbsGrams(e.target.value ? parseInt(e.target.value) : null)} className={inputClass} />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-zinc-500">Fat (g)</label>
+                <label className="mb-1 block text-xs text-zinc-500">{t("form.fat_g")}</label>
                 <input type="number" value={fatGrams ?? ""} onChange={(e) => setFatGrams(e.target.value ? parseInt(e.target.value) : null)} className={inputClass} />
               </div>
             </div>
@@ -853,14 +1042,14 @@ function NewRecipePageInner() {
 
           {/* Important Note */}
           <div>
-            <label className={labelClass}>Important Note</label>
+            <label className={labelClass}>{t("recipe.important_note")}</label>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 -mt-0.5 mb-2">
-              Optional. Any remarks about this recipe — e.g. &quot;Less oil&quot;, &quot;No chilli&quot;, &quot;Kid-friendly version&quot;.
+              {t("form.important_note_hint")}
             </p>
             <textarea
               value={importantNote}
               onChange={(e) => setImportantNote(e.target.value)}
-              placeholder="Add any important remarks here..."
+              placeholder={t("form.important_note_placeholder")}
               rows={2}
               className={inputClass}
             />
@@ -868,12 +1057,12 @@ function NewRecipePageInner() {
 
           {/* Ingredients */}
           <div>
-            <label className={labelClass}>Ingredients</label>
+            <label className={labelClass}>{t("recipe.ingredients")}</label>
             {/* Column headers */}
             <div className="grid grid-cols-[70px_90px_1fr_32px] gap-2 mb-1">
-              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 px-1">Qty</span>
-              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 px-1">Unit</span>
-              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 px-1">Ingredient</span>
+              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 px-1">{t("form.qty")}</span>
+              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 px-1">{t("form.unit")}</span>
+              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 px-1">{t("form.ingredient")}</span>
               <span></span>
             </div>
             <div className="space-y-2">
@@ -885,7 +1074,7 @@ function NewRecipePageInner() {
                     onChange={(e) =>
                       updateIngredient(i, "quantity", e.target.value)
                     }
-                    placeholder="e.g. 2"
+                    placeholder={t("form.qty_placeholder")}
                     className={inputClass}
                   />
                   <input
@@ -894,7 +1083,7 @@ function NewRecipePageInner() {
                     onChange={(e) =>
                       updateIngredient(i, "unit", e.target.value)
                     }
-                    placeholder="e.g. cups"
+                    placeholder={t("form.unit_placeholder")}
                     className={inputClass}
                   />
                   <input
@@ -903,7 +1092,7 @@ function NewRecipePageInner() {
                     onChange={(e) =>
                       updateIngredient(i, "name", e.target.value)
                     }
-                    placeholder="e.g. sliced beef"
+                    placeholder={t("form.ingredient_placeholder")}
                     className={inputClass}
                   />
                   <button
@@ -921,23 +1110,23 @@ function NewRecipePageInner() {
               onClick={addIngredient}
               className="mt-2 text-sm text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
             >
-              + Add ingredient
+              {t("form.add_ingredient")}
             </button>
           </div>
 
           {/* Alternative Ingredients */}
           <div>
-            <label className={labelClass}>Alternative Ingredients</label>
+            <label className={labelClass}>{t("recipe.alternative_ingredients")}</label>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 -mt-0.5 mb-2">
-              Optional. List ingredients that can be substituted and note what replacements work.
+              {t("form.alt_ingredients_hint")}
             </p>
             {altIngredients.length > 0 && (
               <>
                 {/* Column headers: #, Alternative Ingredient (1/3), Description (2/3), remove */}
                 <div className="grid grid-cols-[28px_1fr_2fr_32px] gap-2 mb-1">
                   <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 px-1">#</span>
-                  <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 px-1">Alternative Ingredient</span>
-                  <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 px-1">Description / Replacement Ingredients</span>
+                  <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 px-1">{t("form.alt_name")}</span>
+                  <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 px-1">{t("form.alt_desc")}</span>
                   <span></span>
                 </div>
                 <div className="space-y-2">
@@ -950,14 +1139,14 @@ function NewRecipePageInner() {
                         type="text"
                         value={alt.name}
                         onChange={(e) => updateAltIngredient(i, "name", e.target.value)}
-                        placeholder="e.g. butter"
+                        placeholder={t("form.alt_name_placeholder")}
                         className={inputClass}
                       />
                       <input
                         type="text"
                         value={alt.description}
                         onChange={(e) => updateAltIngredient(i, "description", e.target.value)}
-                        placeholder="e.g. margarine or coconut oil (1:1 ratio)"
+                        placeholder={t("form.alt_desc_placeholder")}
                         className={inputClass}
                       />
                       <button
@@ -977,13 +1166,13 @@ function NewRecipePageInner() {
               onClick={addAltIngredient}
               className="mt-2 text-sm text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
             >
-              + Add alternative ingredient
+              {t("form.add_alt_ingredient")}
             </button>
           </div>
 
           {/* Steps */}
           <div>
-            <label className={labelClass}>Steps</label>
+            <label className={labelClass}>{t("recipe.steps")}</label>
             <div className="space-y-2">
               {steps.map((step, i) => (
                 <div key={i} className="flex gap-2">
@@ -993,7 +1182,7 @@ function NewRecipePageInner() {
                   <textarea
                     value={step}
                     onChange={(e) => updateStep(i, e.target.value)}
-                    placeholder={`Step ${i + 1}...`}
+                    placeholder={`${t("form.step_placeholder")} ${i + 1}...`}
                     rows={2}
                     className={`${inputClass} flex-1`}
                   />
@@ -1012,7 +1201,7 @@ function NewRecipePageInner() {
               onClick={addStep}
               className="mt-2 text-sm text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
             >
-              + Add step
+              {t("form.add_step")}
             </button>
           </div>
 
@@ -1030,12 +1219,12 @@ function NewRecipePageInner() {
               </label>
               <div>
                 <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                  {isPublic ? "Public" : "Private"}
+                  {isPublic ? t("recipe.public") : t("recipe.private")}
                 </p>
                 <p className="text-xs text-zinc-500">
                   {isPublic
-                    ? "Anyone can discover this recipe in the community"
-                    : "Only you can see this recipe"}
+                    ? t("form.public_desc")
+                    : t("form.private_desc")}
                 </p>
               </div>
             </div>
@@ -1044,9 +1233,7 @@ function NewRecipePageInner() {
             {isPublic && !canPublishRecipe({ imageSource, isChef }).allowed && (
               <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/40">
                 <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
-                  To protect creators&apos; copyright, public recipes need your own
-                  photo or an AI-generated image — photos imported from other
-                  sites can&apos;t be published.
+                  {t("form.publish_policy")}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <button
@@ -1055,7 +1242,7 @@ function NewRecipePageInner() {
                     disabled={uploadingImage || generatingImage}
                     className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50 dark:border-amber-700 dark:bg-zinc-800 dark:text-amber-300"
                   >
-                    📷 Upload my photo
+                    {t("form.upload_my_photo")}
                   </button>
                   <button
                     type="button"
@@ -1066,10 +1253,10 @@ function NewRecipePageInner() {
                     {generatingImage ? (
                       <>
                         <div className="h-3 w-3 animate-spin rounded-full border-2 border-indigo-300 border-t-white" />
-                        Generating… (~10s)
+                        {t("form.generating")}
                       </>
                     ) : (
-                      <>✨ Generate AI image</>
+                      <>{t("form.generate_ai_image")}</>
                     )}
                   </button>
                 </div>
@@ -1084,14 +1271,14 @@ function NewRecipePageInner() {
               disabled={saving}
               className="rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
             >
-              {saving ? "Saving..." : "Save Recipe"}
+              {saving ? t("form.saving") : t("form.save_recipe")}
             </button>
             <button
               type="button"
               onClick={() => router.back()}
               className="rounded-lg border border-zinc-300 bg-white px-6 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
           </div>
         </form>

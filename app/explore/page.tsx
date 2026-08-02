@@ -5,8 +5,10 @@ import { createClient } from "@/lib/supabase/client";
 import { NavBar } from "@/app/components/nav-bar";
 import Link from "next/link";
 import { CollectionToggle } from "@/app/components/collection-toggle";
-import type { MealPlan, Profile } from "@/lib/types";
+import { MEAL_PLAN_FESTIVALS, type MealPlan, type MealPlanFestival, type Profile } from "@/lib/types";
 import { useLanguage } from "@/lib/i18n/language-context";
+import { translateFestival } from "@/lib/i18n/translations";
+import { MealPlanFestivalBadge } from "@/app/components/meal-plan-festival-badge";
 
 const SORT_OPTIONS = [
   { value: "newest", labelKey: "explore.newest" as const },
@@ -24,6 +26,7 @@ export default function ExplorePage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"newest" | "most_commented">("newest");
+  const [festivalFilter, setFestivalFilter] = useState<MealPlanFestival | "all">("all");
 
   const loadPlans = useCallback(async () => {
     setLoading(true);
@@ -35,6 +38,9 @@ export default function ExplorePage() {
 
     if (search.trim()) {
       query = query.ilike("title", `%${search.trim()}%`);
+    }
+    if (festivalFilter !== "all") {
+      query = query.eq("festival", festivalFilter);
     }
 
     // Apply sorting
@@ -72,7 +78,7 @@ export default function ExplorePage() {
 
     setPlans(plansWithCreators as MealPlanWithCreator[]);
     setLoading(false);
-  }, [search, sortBy, supabase]);
+  }, [search, sortBy, festivalFilter, supabase]);
 
   useEffect(() => {
     const timer = setTimeout(loadPlans, 300);
@@ -131,6 +137,33 @@ export default function ExplorePage() {
           ))}
         </div>
 
+        {/* User-created plans can be grouped by their optional festival tag. */}
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          <button
+            onClick={() => setFestivalFilter("all")}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              festivalFilter === "all"
+                ? "bg-indigo-600 text-white"
+                : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
+            }`}
+          >
+            {t("festival.all")}
+          </button>
+          {MEAL_PLAN_FESTIVALS.map((festival) => (
+            <button
+              key={festival.value}
+              onClick={() => setFestivalFilter(festival.value)}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                festivalFilter === festival.value
+                  ? "bg-rose-600 text-white"
+                  : "bg-rose-50 text-rose-700 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-950/60"
+              }`}
+            >
+              {festival.icon} {translateFestival(festival.value, locale)}
+            </button>
+          ))}
+        </div>
+
         {/* Results */}
         {loading ? (
           <div className="mt-12 text-center">
@@ -167,6 +200,12 @@ export default function ExplorePage() {
                     <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2">
                       {plan.description}
                     </p>
+                  )}
+
+                  {plan.festival && (
+                    <div className="mt-3">
+                      <MealPlanFestivalBadge festival={plan.festival} />
+                    </div>
                   )}
 
                   <div className="mt-3 flex items-center gap-2">

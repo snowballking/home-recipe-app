@@ -61,73 +61,48 @@ function LandingContent() {
   }
 
   const inputClassName =
-    "w-full rounded-lg border border-amber-200 bg-white/80 px-3.5 py-2.5 text-sm text-stone-900 outline-none transition-[border-color,box-shadow] placeholder:text-stone-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 backdrop-blur-sm";
+    "h-11 w-full rounded-xl border border-stone-200 bg-white px-4 text-sm text-stone-900 outline-none transition-[border-color,box-shadow] placeholder:text-stone-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15";
 
   return (
-    <div
-      className="relative min-h-screen w-full"
-      style={{
-        backgroundImage: `
-          radial-gradient(at 20% 30%, rgba(253, 230, 138, 0.45) 0px, transparent 50%),
-          radial-gradient(at 80% 20%, rgba(254, 215, 170, 0.5) 0px, transparent 55%),
-          radial-gradient(at 70% 90%, rgba(252, 211, 77, 0.35) 0px, transparent 50%),
-          radial-gradient(at 10% 90%, rgba(254, 202, 202, 0.35) 0px, transparent 55%),
-          linear-gradient(135deg, #fffaf0 0%, #fff7ed 100%)
-        `,
-      }}
-    >
-      {/* Decorative floating food icons */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <span className="absolute left-[8%] top-[12%] text-5xl opacity-20 sm:text-6xl">🍅</span>
-        <span className="absolute right-[10%] top-[18%] text-5xl opacity-20 sm:text-7xl">🥖</span>
-        <span className="absolute left-[6%] bottom-[14%] text-4xl opacity-20 sm:text-6xl">🥕</span>
-        <span className="absolute right-[8%] bottom-[10%] text-5xl opacity-20 sm:text-7xl">🍳</span>
-        <span className="absolute left-[45%] top-[6%] text-4xl opacity-15 sm:text-5xl">🌿</span>
-        <span className="absolute right-[40%] bottom-[6%] text-4xl opacity-15 sm:text-5xl">🧄</span>
-      </div>
+    <main className="relative min-h-dvh overflow-x-hidden bg-[#fffaf4] text-stone-950">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute left-1/2 top-[-14rem] h-[30rem] w-[30rem] -translate-x-1/2 rounded-full bg-orange-200/40 blur-3xl sm:left-[18%] sm:h-[34rem] sm:w-[34rem]"
+      />
 
-      <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-center px-4 py-12 sm:py-20 lg:flex-row lg:items-center lg:gap-16">
-        {/* Left: Hero copy */}
-        <div className="mb-10 max-w-xl text-center lg:mb-0 lg:flex-1 lg:text-left">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-amber-300/60 bg-white/60 px-3 py-1 text-xs font-medium text-amber-900 backdrop-blur-sm">
-            <span>👨‍👩‍👧‍👦</span> For our family &amp; close friends
-          </div>
-          <h1 className="text-4xl font-bold tracking-tight text-stone-900 sm:text-5xl lg:text-6xl">
-            Our Family{" "}
-            <span className="bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
-              Kitchen
-            </span>
-          </h1>
-          <p className="mt-5 text-lg leading-relaxed text-stone-700 sm:text-xl">
-            A warm little corner for the recipes we love. Save family favorites, plan the week&apos;s
-            meals, and whip up a grocery list in seconds.
-          </p>
-
-          {/* Feature highlights */}
-          <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <FeatureCard icon="📖" title="Recipe Book" desc="All your favorites in one place" />
-            <FeatureCard icon="📅" title="Meal Plans" desc="Plan a week in minutes" />
-            <FeatureCard icon="🛒" title="Grocery Lists" desc="Auto-generated, ready to shop" />
-          </div>
+      <div className="relative mx-auto flex min-h-dvh max-w-6xl flex-col px-4 py-5 sm:px-6 sm:py-6">
+        <div
+          aria-label="Chef HideOut 私厨"
+          className="text-center text-lg font-bold tracking-[-0.04em] text-stone-950 sm:text-left"
+        >
+          Chef HideOut <span className="text-orange-600">私厨</span>
         </div>
 
-        {/* Right: Login card */}
-        <div className="w-full max-w-md lg:flex-shrink-0">
-          <div className="rounded-2xl border border-amber-100 bg-white/90 p-7 shadow-xl backdrop-blur-md">
-            <div className="mb-5 text-center">
-              <h2 className="text-2xl font-bold tracking-tight text-stone-900">
-                Welcome Home
-              </h2>
-              <p className="mt-1 text-sm text-stone-600">
-                Sign in to access your recipes
+        <div className="flex flex-1 flex-col items-center justify-center py-3 sm:py-4">
+          <section
+            aria-labelledby="login-heading"
+            className="w-full max-w-sm rounded-[2rem] border border-orange-100 bg-white/95 p-6 shadow-[0_24px_70px_rgba(86,52,30,0.10)] backdrop-blur"
+          >
+            <div className="text-center">
+              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-orange-700">
+                Your cooking community
+              </p>
+              <h1
+                id="login-heading"
+                className="mt-3 text-3xl font-bold tracking-[-0.045em] text-stone-950"
+              >
+                Welcome back.
+              </h1>
+              <p className="mt-2 text-sm leading-6 text-stone-600">
+                Recipes, meal plans, and the people you cook with—all in one place.
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="mt-5 space-y-3">
               <div>
                 <label
                   htmlFor="login-email"
-                  className="mb-1.5 block text-sm font-medium text-stone-700"
+                  className="mb-1.5 block text-sm font-semibold text-stone-700"
                 >
                   Email
                 </label>
@@ -147,7 +122,7 @@ function LandingContent() {
               <div>
                 <label
                   htmlFor="login-password"
-                  className="mb-1.5 block text-sm font-medium text-stone-700"
+                  className="mb-1.5 block text-sm font-semibold text-stone-700"
                 >
                   Password
                 </label>
@@ -166,7 +141,7 @@ function LandingContent() {
 
               {error && (
                 <p
-                  className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700"
+                  className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-700"
                   role="alert"
                 >
                   {error}
@@ -176,18 +151,20 @@ function LandingContent() {
               <button
                 type="submit"
                 disabled={loading || googleLoading}
-                className="flex w-full items-center justify-center rounded-lg bg-gradient-to-r from-amber-600 to-orange-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-all hover:from-amber-700 hover:to-orange-700 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex h-11 w-full items-center justify-center rounded-full bg-orange-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-orange-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {loading ? "Signing in…" : "Sign In"}
+                {loading ? "Signing in…" : "Sign in"}
               </button>
             </form>
 
-            <div className="relative my-5">
+            <div className="relative my-4" aria-hidden="true">
               <div className="absolute inset-0 flex items-center" aria-hidden>
                 <div className="w-full border-t border-stone-200" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-2 text-stone-500">Or</span>
+                <span className="bg-white px-2 text-[10px] font-semibold tracking-[0.12em] text-stone-400">
+                  Or
+                </span>
               </div>
             </div>
 
@@ -195,7 +172,7 @@ function LandingContent() {
               type="button"
               onClick={handleGoogleSignIn}
               disabled={loading || googleLoading}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-stone-300 bg-white px-4 py-2.5 text-sm font-medium text-stone-800 transition-colors hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-full border border-stone-200 bg-white px-4 text-sm font-semibold text-stone-800 transition-colors hover:border-orange-200 hover:bg-orange-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden>
                 <path
@@ -218,35 +195,27 @@ function LandingContent() {
               {googleLoading ? "Redirecting…" : "Continue with Google"}
             </button>
 
-            <p className="mt-5 text-center text-sm text-stone-600">
+            <p className="mt-4 text-center text-sm text-stone-600">
               New here?{" "}
               <Link
                 href="/signup"
-                className="font-semibold text-amber-700 underline-offset-4 hover:underline"
+                className="font-semibold text-orange-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
               >
                 Request an invite
               </Link>
             </p>
-          </div>
+          </section>
 
-          <p className="mt-4 text-center text-xs text-stone-500">
-            This is a private app for family &amp; close friends.
-            <br />
-            New accounts need admin approval.
+          <p className="mt-4 text-center text-xs font-semibold text-stone-600">
+            Discover recipes <span aria-hidden="true">·</span> Share variations{" "}
+            <span aria-hidden="true">·</span> Plan together
+          </p>
+          <p className="mt-1.5 text-center text-[11px] text-stone-500">
+            This is a private community. New accounts need admin approval.
           </p>
         </div>
       </div>
-    </div>
-  );
-}
-
-function FeatureCard({ icon, title, desc }: { icon: string; title: string; desc: string }) {
-  return (
-    <div className="rounded-xl border border-amber-100 bg-white/60 p-3 text-center backdrop-blur-sm sm:text-left">
-      <div className="text-2xl">{icon}</div>
-      <p className="mt-1 text-sm font-semibold text-stone-900">{title}</p>
-      <p className="text-xs text-stone-600">{desc}</p>
-    </div>
+    </main>
   );
 }
 
@@ -254,7 +223,7 @@ export default function Home() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-amber-50">
+        <div className="flex min-h-screen items-center justify-center bg-[#fffaf4]">
           <p className="text-sm text-stone-500">Loading…</p>
         </div>
       }
