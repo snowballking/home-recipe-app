@@ -16,6 +16,9 @@ type PublicRecipe = Recipe & {
 
 type DiscoverMode = "latest" | "popular";
 
+const CATEGORY_BUTTON_CLASS =
+  "flex min-h-9 min-w-0 items-center justify-center gap-1 whitespace-normal rounded-2xl px-1.5 py-1.5 text-[10px] font-semibold leading-tight transition-colors sm:min-h-0 sm:shrink-0 sm:rounded-full sm:px-3.5 sm:py-2 sm:text-sm";
+
 export default function DiscoverPage() {
   const supabase = createClient();
   const { locale, t } = useLanguage();
@@ -84,13 +87,16 @@ export default function DiscoverPage() {
           </label>
         </section>
 
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-1 flex-wrap gap-2">
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <div
+            data-testid="discover-categories"
+            className="grid w-full grid-cols-3 gap-1.5 sm:flex sm:w-auto sm:flex-1 sm:flex-wrap sm:gap-2"
+          >
             <button
               type="button"
               onClick={() => setCategory("all")}
               aria-pressed={category === "all"}
-              className={`shrink-0 rounded-full px-3.5 py-2 text-sm font-semibold transition-colors ${
+              className={`${CATEGORY_BUTTON_CLASS} ${
                 category === "all"
                   ? "bg-orange-600 text-white"
                   : "bg-white text-stone-600 ring-1 ring-orange-100 hover:bg-orange-50 dark:bg-stone-900 dark:text-stone-300 dark:ring-stone-800"
@@ -104,7 +110,7 @@ export default function DiscoverPage() {
                 type="button"
                 onClick={() => setCategory(category === item.value ? "all" : item.value)}
                 aria-pressed={category === item.value}
-                className={`shrink-0 rounded-full px-3.5 py-2 text-sm font-semibold transition-colors ${
+                className={`${CATEGORY_BUTTON_CLASS} ${
                   category === item.value
                     ? "bg-orange-600 text-white"
                     : "bg-white text-stone-600 ring-1 ring-orange-100 hover:bg-orange-50 dark:bg-stone-900 dark:text-stone-300 dark:ring-stone-800"
@@ -115,7 +121,7 @@ export default function DiscoverPage() {
             ))}
           </div>
 
-          <div className="inline-flex shrink-0 rounded-full bg-orange-100/80 p-1 dark:bg-stone-900">
+          <div className="inline-flex shrink-0 self-end rounded-full bg-orange-100/80 p-1 sm:self-auto dark:bg-stone-900">
             {(["latest", "popular"] as const).map((option) => (
               <button
                 key={option}
