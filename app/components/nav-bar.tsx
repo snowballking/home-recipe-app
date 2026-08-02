@@ -141,6 +141,14 @@ function ProfileMenu({ userId, displayName, onLogout, loggingOut }: ProfileMenuP
             {t("nav.my_profile")}
           </Link>
           <Link
+            href={`/user/${userId}#saved-recipes`}
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="flex w-full rounded-xl px-3 py-2.5 text-sm font-medium text-stone-700 transition-colors hover:bg-orange-50 hover:text-orange-700 dark:text-stone-200 dark:hover:bg-stone-800 dark:hover:text-orange-300"
+          >
+            {t("nav.saved_recipes")}
+          </Link>
+          <Link
             href="/dashboard/profile"
             role="menuitem"
             onClick={() => setOpen(false)}
@@ -158,6 +166,53 @@ function ProfileMenu({ userId, displayName, onLogout, loggingOut }: ProfileMenuP
           >
             {loggingOut ? t("nav.logging_out") : t("nav.log_out")}
           </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CartComingSoonButton({ mobile = false }: { mobile?: boolean }) {
+  const { t } = useLanguage();
+  const [open, setOpen] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }, []);
+
+  function showMessage() {
+    setOpen(true);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setOpen(false), 2800);
+  }
+
+  return (
+    <div className={mobile ? "relative flex min-h-12 items-center justify-center" : "relative"}>
+      <button
+        type="button"
+        aria-label={t("nav.cart")}
+        aria-expanded={open}
+        title={t("nav.cart_coming_soon")}
+        onClick={showMessage}
+        className={mobile
+          ? "flex min-h-12 flex-col items-center justify-center gap-1 py-1 font-semibold text-emerald-700 opacity-65 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:text-emerald-300"
+          : "hidden items-center gap-1 rounded-full px-3 py-2 text-sm font-medium text-emerald-700 opacity-65 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 sm:inline-flex dark:text-emerald-300"}
+      >
+        {mobile ? <PrimaryNavIcon icon="cart" /> : <span aria-hidden="true">⌑</span>}
+        <span className={mobile ? "text-xs leading-none" : undefined} data-testid={mobile ? "mobile-nav-label-cart" : undefined}>
+          {t("nav.cart")}
+        </span>
+      </button>
+      {open && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={mobile
+            ? "absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-nowrap rounded-full bg-stone-900 px-3 py-2 text-xs font-semibold text-white shadow-lg dark:bg-stone-100 dark:text-stone-900"
+            : "absolute right-0 top-full z-50 mt-2 whitespace-nowrap rounded-full bg-stone-900 px-3 py-2 text-xs font-semibold text-white shadow-lg dark:bg-stone-100 dark:text-stone-900"}
+        >
+          {t("nav.coming_soon")}
         </div>
       )}
     </div>
@@ -215,14 +270,7 @@ export function NavBar() {
 
           <div className="flex items-center gap-1.5 sm:gap-2">
             <CreateMenu className="hidden sm:inline-flex" />
-            <span
-              aria-disabled="true"
-              title={t("nav.cart_coming_soon")}
-              className="hidden cursor-not-allowed items-center gap-1 rounded-full px-3 py-2 text-sm font-medium text-emerald-700 opacity-60 sm:inline-flex dark:text-emerald-300"
-            >
-              <span aria-hidden>⌑</span>
-              {t("nav.cart")}
-            </span>
+            <CartComingSoonButton />
 
             {isAdmin && (
               <Link
@@ -276,17 +324,10 @@ export function NavBar() {
 
           if (item.key === "cart") {
             return (
-              <span
+              <CartComingSoonButton
                 key={item.key}
-                aria-disabled="true"
-                title={t("nav.cart_coming_soon")}
-                className="flex min-h-12 cursor-not-allowed flex-col items-center justify-center gap-1 py-1 font-semibold text-emerald-700 opacity-55 dark:text-emerald-300"
-              >
-                <PrimaryNavIcon icon={item.key} />
-                <span data-testid={`mobile-nav-label-${item.key}`} className="text-xs leading-none">
-                  {t(LABEL_KEYS[item.key])}
-                </span>
-              </span>
+                mobile
+              />
             );
           }
 

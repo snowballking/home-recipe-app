@@ -3,21 +3,25 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { NavBar } from "@/app/components/nav-bar";
-import { RecipeFeedCard } from "@/app/components/recipe-feed-card";
+import { RecipeFeedCard, type RecipeFeedRecipe } from "@/app/components/recipe-feed-card";
 import { filterFeedRecipes, type FeedTab } from "@/lib/feed";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { createClient } from "@/lib/supabase/client";
-import type { Recipe } from "@/lib/types";
 
-type PublicRecipe = Recipe & {
-  profiles?: { displayname: string | null } | null;
+type PublicRecipe = RecipeFeedRecipe & {
+  profiles?: { displayname: string | null } | { displayname: string | null }[] | null;
 };
+
+const HOME_RECIPE_FIELDS =
+  "id,user_id,title,title_zh,description,description_zh,hero_image_url,image_source,original_recipe_id,save_count,comment_count,profiles(displayname)";
+const HOME_RECIPE_LIMIT = 24;
 
 export default function HomePage() {
   const supabase = createClient();
   const { t } = useLanguage();
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [recipes, setRecipes] = useState<RecipeFeedRecipe[]>([]);
   const [followedUserIds, setFollowedUserIds] = useState<Set<string>>(new Set());
+  const [savedRecipeIds, setSavedRecipeIds] = useState<Set<string>>(new Set());
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [tab, setTab] = useState<FeedTab>("for-you");
   const [loading, setLoading] = useState(true);
@@ -25,32 +29,42 @@ export default function HomePage() {
   const loadFeed = useCallback(async () => {
     setLoading(true);
 
+    const userRequest = supabase.auth.getUser();
     const recipeRequest = supabase
       .from("recipes")
-      .select("*, profiles(displayname)")
+      .select(HOME_RECIPE_FIELDS)
       .eq("is_public", true)
       .order("created_at", { ascending: false })
-      .limit(100);
-    const { data: { user } } = await supabase.auth.getUser();
-    const [{ data: publicRecipes }, followsResult] = await Promise.all([
+      .limit(HOME_RECIPE_LIMIT);
+    const [{ data: { user } }, { data: publicRecipes }] = await Promise.all([
+      userRequest,
       recipeRequest,
+    ]);
+    const [followsResult, savesResult] = await Promise.all([
       user
         ? supabase.from("follows").select("following_id").eq("follower_id", user.id)
         : Promise.resolve({ data: [] as { following_id: string }[] }),
+      user
+        ? supabase.from("recipe_saves").select("recipe_id").eq("user_id", user.id)
+        : Promise.resolve({ data: [] as { recipe_id: string }[] }),
     ]);
 
     const withAuthors = ((publicRecipes ?? []) as PublicRecipe[]).map((recipe) => ({
       ...recipe,
-      author_name: recipe.profiles?.displayname ?? "Anonymous",
+      author_name: Array.isArray(recipe.profiles)
+        ? recipe.profiles[0]?.displayname ?? "Anonymous"
+        : recipe.profiles?.displayname ?? "Anonymous",
     }));
 
     setRecipes(withAuthors);
     setFollowedUserIds(new Set((followsResult.data ?? []).map((follow) => follow.following_id)));
+    setSavedRecipeIds(new Set((savesResult.data ?? []).map((save) => save.recipe_id)));
     setIsSignedIn(Boolean(user));
     setLoading(false);
   }, [supabase]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- feed state is populated by the Supabase request.
     void loadFeed();
   }, [loadFeed]);
 
@@ -105,7 +119,13 @@ export default function HomePage() {
           </div>
         ) : feed.length > 0 ? (
           <div className="space-y-5">
-            {feed.map((recipe) => <RecipeFeedCard key={recipe.id} recipe={recipe} />)}
+            {feed.map((recipe) => (
+              <RecipeFeedCard
+                key={recipe.id}
+                recipe={recipe}
+                isSaved={savedRecipeIds.has(recipe.id)}
+              />
+            ))}
           </div>
         ) : tab === "following" ? (
           <section className="rounded-3xl border border-dashed border-orange-200 bg-orange-50/50 px-6 py-12 text-center dark:border-orange-900 dark:bg-orange-950/20">

@@ -8,21 +8,31 @@ interface SaveRecipeButtonProps {
   recipeId: string;
   saveCount: number;
   variant?: "icon" | "full";
+  /** When supplied by a list page, avoid one saved-state request per card. */
+  initialSaved?: boolean;
 }
 
-export function SaveRecipeButton({ recipeId, saveCount, variant = "full" }: SaveRecipeButtonProps) {
+export function SaveRecipeButton({
+  recipeId,
+  saveCount,
+  variant = "full",
+  initialSaved,
+}: SaveRecipeButtonProps) {
   const supabase = createClient();
-  const { locale } = useLanguage();
-  const [isSaved, setIsSaved] = useState(false);
+  const { locale, t } = useLanguage();
+  const [isSaved, setIsSaved] = useState(initialSaved ?? false);
   const [count, setCount] = useState(saveCount);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(initialSaved === undefined);
 
   useEffect(() => {
+    if (initialSaved !== undefined) return;
+
+    let active = true;
     async function check() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
-          setLoading(false);
+          if (active) setLoading(false);
           return;
         }
         const { data } = await supabase
@@ -31,14 +41,17 @@ export function SaveRecipeButton({ recipeId, saveCount, variant = "full" }: Save
           .eq("user_id", user.id)
           .eq("recipe_id", recipeId)
           .maybeSingle();
-        setIsSaved(!!data);
+        if (active) setIsSaved(!!data);
       } catch {
         // Auth lock race condition — safe to ignore
       }
-      setLoading(false);
+      if (active) setLoading(false);
     }
     check();
-  }, [recipeId]);
+    return () => {
+      active = false;
+    };
+  }, [recipeId, initialSaved, supabase]);
 
   async function toggleSave() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -49,18 +62,26 @@ export function SaveRecipeButton({ recipeId, saveCount, variant = "full" }: Save
     setLoading(true);
 
     if (isSaved) {
-      await supabase
+      const result = await supabase
         .from("recipe_saves")
         .delete()
         .eq("user_id", user.id)
         .eq("recipe_id", recipeId);
+      if (result.error) {
+        setLoading(false);
+        return;
+      }
       setIsSaved(false);
       setCount((c) => Math.max(0, c - 1));
     } else {
-      await supabase.from("recipe_saves").insert({
+      const result = await supabase.from("recipe_saves").insert({
         user_id: user.id,
         recipe_id: recipeId,
       });
+      if (result.error) {
+        setLoading(false);
+        return;
+      }
       setIsSaved(true);
       setCount((c) => c + 1);
     }
@@ -72,6 +93,8 @@ export function SaveRecipeButton({ recipeId, saveCount, variant = "full" }: Save
       <button
         onClick={toggleSave}
         disabled={loading}
+        aria-label={isSaved ? t("saved.remove_action") : t("saved.save_action")}
+        aria-pressed={isSaved}
         className={`flex items-center gap-1 rounded-full px-3 py-1 text-sm transition-colors ${
           isSaved
             ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300"
@@ -87,6 +110,8 @@ export function SaveRecipeButton({ recipeId, saveCount, variant = "full" }: Save
     <button
       onClick={toggleSave}
       disabled={loading}
+      aria-label={isSaved ? t("saved.remove_action") : t("saved.save_action")}
+      aria-pressed={isSaved}
       className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
         isSaved
           ? "border border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"

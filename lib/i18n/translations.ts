@@ -18,6 +18,7 @@ const translations = {
   "nav.log_out": { en: "Log Out", zh: "退出" },
   "nav.logging_out": { en: "Logging out…", zh: "正在退出…" },
   "nav.my_profile": { en: "My Profile", zh: "我的主页" },
+  "nav.saved_recipes": { en: "Saved Recipes", zh: "已收藏食谱" },
   "nav.edit_profile": { en: "Edit Profile", zh: "编辑个人资料" },
   "nav.home": { en: "Home", zh: "首页" },
   "nav.discover": { en: "Discover", zh: "发现" },
@@ -25,6 +26,7 @@ const translations = {
   "nav.create": { en: "Create", zh: "创建" },
   "nav.cart": { en: "Cart", zh: "购物车" },
   "nav.cart_coming_soon": { en: "Universal cart coming soon", zh: "通用购物车即将推出" },
+  "nav.coming_soon": { en: "Coming Soon", zh: "即将推出" },
   "nav.profile": { en: "Profile", zh: "个人主页" },
 
   // ── Global creation menu ───────────────────────────
@@ -42,6 +44,14 @@ const translations = {
   "home.empty_following": { en: "Follow a cook to fill this feed.", zh: "关注一位厨友，这里就会有新内容。" },
   "home.open_recipe": { en: "View recipe", zh: "查看食谱" },
   "home.comments": { en: "Comments", zh: "评论" },
+
+  // ── Saved recipe collection ────────────────────────
+  "saved.title": { en: "Saved Recipes", zh: "已收藏食谱" },
+  "saved.private": { en: "Only you can see this collection.", zh: "只有你能看到这个收藏夹。" },
+  "saved.empty": { en: "Save recipes from Discover or a recipe page and they will appear here.", zh: "在发现页或食谱详情中收藏食谱，它们会显示在这里。" },
+  "saved.browse": { en: "Browse recipes", zh: "浏览食谱" },
+  "saved.save_action": { en: "Save recipe", zh: "收藏食谱" },
+  "saved.remove_action": { en: "Remove from saved recipes", zh: "取消收藏食谱" },
 
   // ── Recipe discovery ────────────────────────────────
   "discover.title": { en: "Find your next favourite", zh: "发现下一道心头好" },

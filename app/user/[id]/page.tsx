@@ -5,6 +5,7 @@ import { RecipeCard } from "@/app/components/recipe-card";
 import { FollowButton } from "@/app/components/follow-button";
 import Link from "next/link";
 import { ChangePassword } from "./change-password";
+import { SavedRecipeCollection } from "@/app/components/saved-recipe-collection";
 import type { Recipe, Profile, MealPlan, RecipeSave } from "@/lib/types";
 
 const PROFILE_LINK_LABELS: { key: keyof Profile["external_links"]; label: string; icon: string }[] = [
@@ -331,19 +332,7 @@ export default async function UserProfilePage({ params }: PageProps) {
         )}
 
         {/* Saved Recipes (owner only — RLS keeps saves private) */}
-        {isOwner && savedRecipes.length > 0 && (
-          <div className="mt-8">
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-              Saved Recipes
-            </h2>
-            <p className="mt-0.5 text-xs text-zinc-400">Only you can see this.</p>
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {savedRecipes.map((recipe) => (
-                <RecipeCard key={recipe.id} recipe={recipe} showAuthor={false} />
-              ))}
-            </div>
-          </div>
-        )}
+        {isOwner && <SavedRecipeCollection recipes={savedRecipes} />}
       </div>
     </div>
   );

@@ -5,11 +5,27 @@ import type { Recipe } from "@/lib/types";
 import { SaveRecipeButton } from "@/app/components/save-recipe-button";
 import { useLanguage } from "@/lib/i18n/language-context";
 
+export type RecipeFeedRecipe = Pick<
+  Recipe,
+  | "id"
+  | "user_id"
+  | "title"
+  | "title_zh"
+  | "description"
+  | "description_zh"
+  | "hero_image_url"
+  | "image_source"
+  | "original_recipe_id"
+  | "save_count"
+  | "comment_count"
+> & Pick<Recipe, "author_name">;
+
 interface RecipeFeedCardProps {
-  recipe: Recipe;
+  recipe: RecipeFeedRecipe;
+  isSaved?: boolean;
 }
 
-export function RecipeFeedCard({ recipe }: RecipeFeedCardProps) {
+export function RecipeFeedCard({ recipe, isSaved = false }: RecipeFeedCardProps) {
   const { locale, t } = useLanguage();
   const title = (locale === "zh" && recipe.title_zh) || recipe.title;
   const description = (locale === "zh" && recipe.description_zh) || recipe.description;
@@ -40,6 +56,8 @@ export function RecipeFeedCard({ recipe }: RecipeFeedCardProps) {
             <img
               src={recipe.hero_image_url}
               alt={title}
+              loading="lazy"
+              decoding="async"
               className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
             />
           ) : (
@@ -60,7 +78,12 @@ export function RecipeFeedCard({ recipe }: RecipeFeedCardProps) {
         </Link>
 
         <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-orange-50 pt-3 dark:border-stone-800">
-          <SaveRecipeButton recipeId={recipe.id} saveCount={recipe.save_count} variant="icon" />
+          <SaveRecipeButton
+            recipeId={recipe.id}
+            saveCount={recipe.save_count}
+            variant="icon"
+            initialSaved={isSaved}
+          />
           <Link
             href={`/recipe/${recipe.id}#comments`}
             className="rounded-full bg-stone-100 px-3 py-1.5 text-sm font-medium text-stone-700 transition-colors hover:bg-orange-50 hover:text-orange-700 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-orange-950 dark:hover:text-orange-300"

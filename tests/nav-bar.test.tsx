@@ -58,6 +58,7 @@ describe("NavBar profile menu", () => {
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByRole("menu")).toBeTruthy();
     expect(screen.getByRole("menuitem", { name: "My Profile" }).getAttribute("href")).toBe("/user/user-1");
+    expect(screen.getByRole("menuitem", { name: "Saved Recipes" }).getAttribute("href")).toBe("/user/user-1#saved-recipes");
     expect(screen.getByRole("menuitem", { name: "Edit Profile" }).getAttribute("href")).toBe("/dashboard/profile");
     expect(screen.getByRole("menuitem", { name: "Log Out" })).toBeTruthy();
   });
@@ -104,7 +105,7 @@ describe("NavBar profile menu", () => {
 });
 
 describe("NavBar mobile primary navigation", () => {
-  it("keeps the five destinations while giving standard tabs 24-pixel icons and 12-pixel labels", () => {
+  it("keeps the five destinations while giving standard tabs 24-pixel icons and 12-pixel labels", async () => {
     renderNavBar();
     const mobileNav = screen.getByRole("navigation", { name: "Mobile primary" });
 
@@ -112,7 +113,11 @@ describe("NavBar mobile primary navigation", () => {
     expect(within(mobileNav).getByRole("link", { name: "Discover" }).getAttribute("href")).toBe("/discover");
     expect(within(mobileNav).getByRole("link", { name: "Plans" }).getAttribute("href")).toBe("/explore");
     expect(within(mobileNav).getByRole("button", { name: "Create" })).toBeTruthy();
-    expect(within(mobileNav).getByTitle("Universal cart coming soon").getAttribute("aria-disabled")).toBe("true");
+    const cart = within(mobileNav).getByRole("button", { name: "Cart" });
+    expect(cart.getAttribute("title")).toBe("Universal cart coming soon");
+
+    await userEvent.setup().click(cart);
+    expect(within(mobileNav).getByRole("status").textContent).toBe("Coming Soon");
 
     for (const key of ["home", "discover", "plans", "cart"] as const) {
       const iconClass = within(mobileNav).getByTestId(`mobile-nav-icon-${key}`).getAttribute("class") ?? "";
