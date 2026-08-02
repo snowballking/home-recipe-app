@@ -5,7 +5,7 @@ export interface SavedRecipeIdRow {
 }
 
 export interface SavedRecipeRow extends SavedRecipeIdRow {
-  recipes?: Recipe | null;
+  recipes?: Recipe | Recipe[] | null;
 }
 
 export function getSavedRecipeIds(rows: SavedRecipeIdRow[] | null | undefined): string[] {
@@ -13,5 +13,8 @@ export function getSavedRecipeIds(rows: SavedRecipeIdRow[] | null | undefined): 
 }
 
 export function normalizeSavedRecipeRows(rows: SavedRecipeRow[] | null | undefined): Recipe[] {
-  return (rows ?? []).flatMap((row) => row.recipes ? [row.recipes] : []);
+  return (rows ?? []).flatMap((row) => {
+    if (!row.recipes) return [];
+    return Array.isArray(row.recipes) ? row.recipes : [row.recipes];
+  });
 }

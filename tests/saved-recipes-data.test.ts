@@ -57,6 +57,14 @@ describe("saved recipe data helpers", () => {
     ])).toEqual([laksa, nasiLemak]);
   });
 
+  it("accepts the array-shaped join returned by an untyped client query", () => {
+    const laksa = makeRecipe("laksa", "Laksa");
+
+    expect(normalizeSavedRecipeRows([
+      { recipe_id: "laksa", recipes: [laksa] },
+    ])).toEqual([laksa]);
+  });
+
   it("returns each saved recipe id once in saved order", () => {
     expect(getSavedRecipeIds([
       { recipe_id: "laksa" },

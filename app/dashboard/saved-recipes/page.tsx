@@ -9,6 +9,7 @@ import type { Recipe } from "@/lib/types";
 
 export default function SavedRecipesPage() {
   const { user, loading: authLoading } = useAuth();
+  const userId = user?.id;
   const supabase = useMemo(() => createClient(), []);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
@@ -16,7 +17,7 @@ export default function SavedRecipesPage() {
   useEffect(() => {
     if (authLoading) return;
 
-    if (!user) {
+    if (!userId) {
       setRecipes([]);
       setLoading(false);
       return;
@@ -29,7 +30,7 @@ export default function SavedRecipesPage() {
       const { data } = await supabase
         .from("recipe_saves")
         .select("recipe_id, created_at, recipes(*)")
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .order("created_at", { ascending: false });
 
       if (!active) return;
@@ -46,7 +47,7 @@ export default function SavedRecipesPage() {
     return () => {
       active = false;
     };
-  }, [authLoading, supabase, user]);
+  }, [authLoading, supabase, userId]);
 
   if (authLoading || loading) {
     return (
