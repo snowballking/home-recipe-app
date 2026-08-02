@@ -29,7 +29,7 @@ flowchart LR
 ### Social home
 
 - **Home is a community recipe feed**, not a dashboard or catalogue.
-- The feed has **For you** and **Following** tabs. The first can include public recipes, chef posts, community variations, and selected public meal plans; the second is limited to followed people.
+- The feed has **For you** and **Following** tabs. The first can include public recipes, chef posts, public community variations, and selected public meal plans; the second is limited to followed people.
 - Recipe posts are the dominant feed unit. Public meal plans appear as less-frequent, richer cards, especially for festive, fitness, or shared-week content.
 - Each recipe card prioritises the cook/chef, a food image, a concise personal caption, social actions, and a clear next action. Metadata is secondary.
 - Existing social mechanics—follow, comment, save, ratings, chef attribution, and recipe variations—remain; the redesign makes them visible and coherent.
@@ -65,6 +65,7 @@ flowchart LR
 - For an **online import**, the extracted recipe opens in a private review workspace. After checking the extracted title, ingredients, and steps, the user can choose **Personalise it** to change quantities, ingredients, steps, servings, or notes before saving. The source URL and attribution remain attached; imported recipes stay private by default.
 - For an **existing public recipe**, Make it yours creates a materialised, private-by-default variation. The cook describes what changed, such as reducing oil, adapting spice, replacing an ingredient, or improving the method. The variation keeps a visible “Based on [creator]’s [recipe]” relationship.
 - Variations are ordinary recipe records, not live delta overlays. This preserves compatibility with meal plans, grocery consolidation, nutrition, search, translations, and existing RLS rules.
+- A variation begins private to prevent accidental publishing, but its creator can explicitly make it public. Public variations appear in the feed and accept the same follows, comments, saves, ratings, and grocery actions as any other public recipe, while retaining the variation label and original-creator credit.
 - An imported or varied recipe can only become public under the existing content rules: an original photo, AI-generated placeholder, or licensed creator status. The original creator’s imported photo is never copied into a variation.
 
 ## Navigation and Responsive Shell
@@ -128,6 +129,8 @@ Discover is the deliberate-browse companion to Home. It retains recipe category,
 - Show normalized quantity, unit, source, and a remove action for each item/source.
 - When two sources require the same ingredient, show the combined amount with a small source disclosure.
 - Preserve existing AI grocery-list consolidation as the consolidation engine. The UI should make the result legible rather than expose raw ingredient lines.
+- A variation adds **its final ingredient list** to the cart. The cart never attempts to apply an ingredient diff over its original recipe at shopping time.
+- If someone adds both an original recipe and one of its variations, they remain distinct recipe sources before consolidation. The cart merges matching ingredients for the shopping total and retains a source disclosure such as “from Mei’s prawn mee” and “from Arun’s lower-oil variation”.
 
 ### Cart progression
 
@@ -185,6 +188,7 @@ All new user-facing copy must be bilingual English / Simplified Chinese. Recipe 
 
 - A new user can open Home and immediately understand that this is a social recipe community.
 - A user can save, comment on, follow, vary, or add a public recipe’s ingredients to a cart from the discovery flow.
+- A user can explicitly publish an eligible variation and add that variation’s adjusted ingredients to the cart, with clear original-recipe credit.
 - A user can buy ingredients for one recipe, several recipe selections, or a meal plan without being forced into a different workflow.
 - A user can still create a recipe or a meal plan from one global Create entry point.
 - Meal planning, cart, and discoverability work comfortably on mobile and desktop.
