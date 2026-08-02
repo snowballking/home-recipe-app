@@ -141,7 +141,7 @@ function ProfileMenu({ userId, displayName, onLogout, loggingOut }: ProfileMenuP
             {t("nav.my_profile")}
           </Link>
           <Link
-            href={`/user/${userId}#saved-recipes`}
+            href="/dashboard/saved-recipes"
             role="menuitem"
             onClick={() => setOpen(false)}
             className="flex w-full rounded-xl px-3 py-2.5 text-sm font-medium text-stone-700 transition-colors hover:bg-orange-50 hover:text-orange-700 dark:text-stone-200 dark:hover:bg-stone-800 dark:hover:text-orange-300"

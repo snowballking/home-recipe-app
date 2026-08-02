@@ -7,18 +7,20 @@ import type { Recipe } from "@/lib/types";
 
 interface SavedRecipeCollectionProps {
   recipes: Recipe[];
+  headingLevel?: "h1" | "h2";
 }
 
-export function SavedRecipeCollection({ recipes }: SavedRecipeCollectionProps) {
+export function SavedRecipeCollection({ recipes, headingLevel = "h2" }: SavedRecipeCollectionProps) {
   const { t } = useLanguage();
+  const Heading = headingLevel === "h1" ? "h1" : "h2";
 
   return (
     <section id="saved-recipes" className="mt-8 scroll-mt-24">
       <div className="flex items-end justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+          <Heading className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
             {t("saved.title")}
-          </h2>
+          </Heading>
           <p className="mt-0.5 text-xs text-zinc-400">{t("saved.private")}</p>
         </div>
         <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">

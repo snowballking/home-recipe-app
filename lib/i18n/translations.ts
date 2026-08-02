@@ -124,6 +124,10 @@ const translations = {
   "meal_plan.select_recipe": { en: "Select a Recipe", zh: "选择食谱" },
   "meal_plan.search_recipes": { en: "Search recipes...", zh: "搜索食谱..." },
   "meal_plan.no_recipes": { en: "No recipes available", zh: "没有可用的食谱" },
+  "meal_plan.saved_source": { en: "Saved", zh: "已收藏" },
+  "meal_plan.all_source": { en: "All", zh: "全部" },
+  "meal_plan.mine_source": { en: "My Recipes", zh: "我的食谱" },
+  "meal_plan.community_source": { en: "Community", zh: "社区食谱" },
 
   // ── Meal Plans Market ────────────────────────────────
   "explore.title": { en: "Meal Plans Market", zh: "餐计划市场" },

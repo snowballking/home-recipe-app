@@ -9,6 +9,12 @@ import Link from "next/link";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { translateCategory, translateFestival } from "@/lib/i18n/translations";
 import { MealPlanFestivalBadge } from "@/app/components/meal-plan-festival-badge";
+import {
+  filterRecipesForPicker,
+  getDefaultRecipePickerSource,
+  type RecipePickerSource,
+} from "@/lib/recipe-picker-source";
+import { getSavedRecipeIds } from "@/lib/saved-recipes";
 
 /** Helper: get display title for a recipe based on locale */
 function recipeDisplayTitle(recipe: Recipe | undefined, locale: string): string {
@@ -22,8 +28,9 @@ interface SlotWithRecipe extends MealPlanSlot {
 
 /* ───────────────────────── Recipe Picker Modal ───────────────────────── */
 
-function RecipePickerModal({
+export function RecipePickerModal({
   recipes,
+  savedRecipeIds,
   saving,
   onSelect,
   onClose,
@@ -31,6 +38,7 @@ function RecipePickerModal({
   currentUserId,
 }: {
   recipes: Recipe[];
+  savedRecipeIds: string[];
   saving: boolean;
   onSelect: (id: string) => void;
   onClose: () => void;
@@ -40,19 +48,19 @@ function RecipePickerModal({
   const { locale, t } = useLanguage();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
-  const [sourceFilter, setSourceFilter] = useState<"all" | "mine" | "community">("all");
+  const [sourceFilter, setSourceFilter] = useState<RecipePickerSource>(
+    () => getDefaultRecipePickerSource(savedRecipeIds),
+  );
 
   const filtered = useMemo(() => {
-    let list = recipes;
-    if (sourceFilter === "mine") list = list.filter((r) => r.user_id === currentUserId);
-    else if (sourceFilter === "community") list = list.filter((r) => r.user_id !== currentUserId);
+    let list = filterRecipesForPicker(recipes, currentUserId, sourceFilter, savedRecipeIds);
     if (category !== "all") list = list.filter((r) => r.category === category);
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter((r) => r.title.toLowerCase().includes(q) || (r.title_zh && r.title_zh.includes(q)));
     }
     return list;
-  }, [recipes, category, search, sourceFilter, currentUserId]);
+  }, [recipes, category, search, sourceFilter, currentUserId, savedRecipeIds]);
 
   // Group by category for display
   const categoryOptions = RECIPE_CATEGORIES.filter((c) => c.value !== "all");
@@ -119,15 +127,22 @@ function RecipePickerModal({
             ))}
           </div>
 
-          {/* Source filter: All / My Recipes / Community */}
-          <div className="mt-2 flex gap-1">
-            {(["all", "mine", "community"] as const).map((val) => {
-              const label = val === "all" ? (locale === "zh" ? "全部" : "All")
-                : val === "mine" ? (locale === "zh" ? "我的食谱" : "My Recipes")
-                : (locale === "zh" ? "社区食谱" : "Community");
+          {/* Source filter: Saved / All / My Recipes / Community */}
+          <div className="mt-2 flex gap-1" role="tablist" aria-label="Recipe source">
+            {(["saved", "all", "mine", "community"] as RecipePickerSource[]).map((val) => {
+              const label = val === "saved"
+                ? `${t("meal_plan.saved_source")} (${savedRecipeIds.length})`
+                : val === "all"
+                  ? t("meal_plan.all_source")
+                  : val === "mine"
+                    ? t("meal_plan.mine_source")
+                    : t("meal_plan.community_source");
               return (
                 <button
                   key={val}
+                  type="button"
+                  role="tab"
+                  aria-selected={sourceFilter === val}
                   onClick={() => setSourceFilter(val)}
                   className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
                     sourceFilter === val
@@ -212,6 +227,7 @@ export default function MealPlanDetailPage() {
   const [plan, setPlan] = useState<MealPlan | null>(null);
   const [slots, setSlots] = useState<SlotWithRecipe[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [savedRecipeIds, setSavedRecipeIds] = useState<string[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -298,11 +314,20 @@ export default function MealPlanDetailPage() {
       setMealRemarks((planData as any).meal_remarks ?? {});
       setSlots((slotsData ?? []) as SlotWithRecipe[]);
 
-      // Load user's own recipes + all public recipes
-      const { data: recipesData } = await supabase
-        .from("recipes").select("*, profiles(displayname)")
-        .or(`user_id.eq.${user.id},is_public.eq.true`)
-        .order("title", { ascending: true });
+      // Load user's own recipes + all public recipes, plus the saved IDs that
+      // power the picker without duplicating recipe data.
+      const [recipesResult, savedRecipesResult] = await Promise.all([
+        supabase
+          .from("recipes")
+          .select("*, profiles(displayname)")
+          .or(`user_id.eq.${user.id},is_public.eq.true`)
+          .order("title", { ascending: true }),
+        supabase
+          .from("recipe_saves")
+          .select("recipe_id")
+          .eq("user_id", user.id),
+      ]);
+      const recipesData = recipesResult.data;
       // Deduplicate (user's own public recipes appear in both conditions)
       const seen = new Set<string>();
       const deduped = (recipesData ?? []).filter((r: any) => {
@@ -314,6 +339,7 @@ export default function MealPlanDetailPage() {
         ...r,
         author_name: r.profiles?.displayname ?? "Anonymous",
       })) as Recipe[]);
+      setSavedRecipeIds(getSavedRecipeIds(savedRecipesResult.data));
       setUserId(user.id);
 
       // Load approver profile if assigned
@@ -1724,6 +1750,7 @@ export default function MealPlanDetailPage() {
       {activeCell && (
         <RecipePickerModal
           recipes={recipes}
+          savedRecipeIds={savedRecipeIds}
           saving={saving}
           onSelect={addRecipeToSlot}
           onClose={() => setActiveCell(null)}
