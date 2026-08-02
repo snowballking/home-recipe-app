@@ -12,25 +12,19 @@ export default function SavedRecipesPage() {
   const userId = user?.id;
   const supabase = useMemo(() => createClient(), []);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (authLoading) return;
-
-    if (!userId) {
-      setRecipes([]);
-      setLoading(false);
-      return;
-    }
+    const currentUserId = userId ?? "";
+    if (authLoading || !currentUserId) return;
 
     let active = true;
-    setLoading(true);
 
     async function loadSavedRecipes() {
       const { data } = await supabase
         .from("recipe_saves")
         .select("recipe_id, created_at, recipes(*)")
-        .eq("user_id", userId)
+        .eq("user_id", currentUserId)
         .order("created_at", { ascending: false });
 
       if (!active) return;
@@ -39,7 +33,7 @@ export default function SavedRecipesPage() {
       // duplicated rows, while the collection only renders available joins.
       const savedRecipeIds = new Set(getSavedRecipeIds(data));
       setRecipes(normalizeSavedRecipeRows(data).filter((recipe) => savedRecipeIds.has(recipe.id)));
-      setLoading(false);
+      setLoadedUserId(currentUserId);
     }
 
     void loadSavedRecipes();
@@ -49,7 +43,7 @@ export default function SavedRecipesPage() {
     };
   }, [authLoading, supabase, userId]);
 
-  if (authLoading || loading) {
+  if (authLoading || (userId && loadedUserId !== userId)) {
     return (
       <div className="min-h-full bg-zinc-50 dark:bg-zinc-950">
         <div className="flex min-h-64 items-center justify-center" role="status" aria-label="Loading saved recipes">
@@ -59,7 +53,7 @@ export default function SavedRecipesPage() {
     );
   }
 
-  if (!user) return null;
+  if (!userId) return null;
 
   return (
     <div className="min-h-full bg-zinc-50 dark:bg-zinc-950">
