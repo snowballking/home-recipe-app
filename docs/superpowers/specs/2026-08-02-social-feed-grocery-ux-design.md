@@ -16,6 +16,8 @@ flowchart LR
   B -->|Keep it| C[Save recipe]
   B -->|Cook it| D[Add this recipe's ingredients to cart]
   B -->|Organise several meals| E[Add recipe to meal plan]
+  B -->|Adapt it| I[Make it yours]
+  I --> J[Private recipe variation]
   E --> F[Merged grocery list]
   D --> G[Shared grocery cart]
   F --> G
@@ -31,6 +33,7 @@ flowchart LR
 - Recipe posts are the dominant feed unit. Public meal plans appear as less-frequent, richer cards, especially for festive, fitness, or shared-week content.
 - Each recipe card prioritises the cook/chef, a food image, a concise personal caption, social actions, and a clear next action. Metadata is secondary.
 - Existing social mechanics—follow, comment, save, ratings, chef attribution, and recipe variations—remain; the redesign makes them visible and coherent.
+- A recipe can be adapted through **Make it yours**, the user-facing name for an adjustment/overlay. It is a first-class social action alongside save and add ingredients.
 
 ### Meal plans
 
@@ -55,6 +58,14 @@ flowchart LR
   - **Add recipe** (primary): write an original recipe or import a recipe link.
   - **Start a meal plan** (secondary): create a private or eventually shareable plan.
 - Recipe creation remains the primary option because Home is recipe-led. Both options are always available on mobile and desktop.
+
+### Recipe adjustments and variations
+
+- **Make it yours** is the consistent bilingual user-facing action for adjusting a recipe to personal taste or improving it for the community. “Overlay” describes the product concept internally; it is not the primary user-facing label.
+- For an **online import**, the extracted recipe opens in a private review workspace. After checking the extracted title, ingredients, and steps, the user can choose **Personalise it** to change quantities, ingredients, steps, servings, or notes before saving. The source URL and attribution remain attached; imported recipes stay private by default.
+- For an **existing public recipe**, Make it yours creates a materialised, private-by-default variation. The cook describes what changed, such as reducing oil, adapting spice, replacing an ingredient, or improving the method. The variation keeps a visible “Based on [creator]’s [recipe]” relationship.
+- Variations are ordinary recipe records, not live delta overlays. This preserves compatibility with meal plans, grocery consolidation, nutrition, search, translations, and existing RLS rules.
+- An imported or varied recipe can only become public under the existing content rules: an original photo, AI-generated placeholder, or licensed creator status. The original creator’s imported photo is never copied into a variation.
 
 ## Navigation and Responsive Shell
 
@@ -92,7 +103,7 @@ The card sequence is:
 3. Like, comment, share, and save controls.
 4. A clear ingredient action: **Add ingredients** or **Add to cart**.
 5. Short personal caption and optional cultural/dietary tags.
-6. A secondary **Make it yours** action for public recipes, preserving the approved variation and attribution model.
+6. A secondary **Make it yours** action for public recipes, preserving the approved variation and attribution model. Its resulting card has a small variation label and creator-credit banner rather than presenting the adaptation as an unrelated original.
 
 Recipe cards should feel like social posts, not product tiles: lighter metadata, stronger image/cook/caption hierarchy, and clear social feedback. Imported-photo publishing restrictions and AI-image badges remain visibly enforced.
 
@@ -148,7 +159,7 @@ This document specifies experience, not a new backend. The redesign should reuse
 | `grocery_lists`, `grocery_items`, AI consolidation | Ingredient consolidation and cart foundations |
 | Chef/profile data | Creator identity, following, and discoverability |
 
-The universal cart will require a dedicated cart data model during implementation, rather than overloading a single plan-bound `grocery_list`. Its exact schema belongs in the implementation plan. It must support multiple recipe sources, optional meal-plan source, consolidated items, and a future checkout state.
+The existing `original_recipe_id`, `variation_note`, and materialised-copy model remain the foundation for recipe adjustments. The universal cart will require a dedicated cart data model during implementation, rather than overloading a single plan-bound `grocery_list`. Its exact schema belongs in the implementation plan. It must support multiple recipe sources, optional meal-plan source, consolidated items, and a future checkout state.
 
 All new user-facing copy must be bilingual English / Simplified Chinese. Recipe content translation, formal marketplace payments, inventory integrations, and Traditional Chinese remain scoped according to `FEATURES.md` and `ROADMAP.md`.
 
