@@ -58,7 +58,7 @@ describe("NavBar profile menu", () => {
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByRole("menu")).toBeTruthy();
     expect(screen.getByRole("menuitem", { name: "My Profile" }).getAttribute("href")).toBe("/user/user-1");
-    expect(screen.getByRole("menuitem", { name: "Saved Recipes" }).getAttribute("href")).toBe("/user/user-1#saved-recipes");
+    expect(screen.getByRole("menuitem", { name: "Saved Recipes" }).getAttribute("href")).toBe("/dashboard/saved-recipes");
     expect(screen.getByRole("menuitem", { name: "Edit Profile" }).getAttribute("href")).toBe("/dashboard/profile");
     expect(screen.getByRole("menuitem", { name: "Log Out" })).toBeTruthy();
   });

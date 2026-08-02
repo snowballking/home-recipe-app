@@ -5,8 +5,7 @@ import { RecipeCard } from "@/app/components/recipe-card";
 import { FollowButton } from "@/app/components/follow-button";
 import Link from "next/link";
 import { ChangePassword } from "./change-password";
-import { SavedRecipeCollection } from "@/app/components/saved-recipe-collection";
-import type { Recipe, Profile, MealPlan, RecipeSave } from "@/lib/types";
+import type { Recipe, Profile, MealPlan } from "@/lib/types";
 
 const PROFILE_LINK_LABELS: { key: keyof Profile["external_links"]; label: string; icon: string }[] = [
   { key: "instagram", label: "Instagram", icon: "📷" },
@@ -65,21 +64,6 @@ export default async function UserProfilePage({ params }: PageProps) {
     .limit(12);
 
   const publicPlans = (sharedPlans ?? []) as MealPlan[];
-
-  // Saved recipes — RLS restricts recipe_saves to the owner, so this only
-  // returns rows when the viewer is looking at their own profile.
-  let savedRecipes: Recipe[] = [];
-  if (isOwner) {
-    const { data: saves } = await supabase
-      .from("recipe_saves")
-      .select("*, recipes(*)")
-      .eq("user_id", id)
-      .order("created_at", { ascending: false })
-      .limit(12);
-    savedRecipes = ((saves ?? []) as RecipeSave[])
-      .map((s) => s.recipes)
-      .filter((r): r is Recipe => !!r);
-  }
 
   // Stats
   const totalRatings = userRecipes.reduce((acc, r) => acc + r.rating_count, 0);
@@ -330,9 +314,6 @@ export default async function UserProfilePage({ params }: PageProps) {
             </div>
           </div>
         )}
-
-        {/* Saved Recipes (owner only — RLS keeps saves private) */}
-        {isOwner && <SavedRecipeCollection recipes={savedRecipes} />}
       </div>
     </div>
   );
