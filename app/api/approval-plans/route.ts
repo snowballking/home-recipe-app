@@ -75,7 +75,7 @@ export async function GET(_request: NextRequest) {
   // 5. Debug: check ALL plans that have any approver_id set
   let debugApproverData: any[] = [];
   let debugYourProfile: any = null;
-  let debugApproverProfile: any = null;
+  const debugApproverProfile: any = null;
   if (plansWithNames.length === 0 && queryClient) {
     // Get your profile name
     const { data: yourProfile } = await queryClient
@@ -92,7 +92,7 @@ export async function GET(_request: NextRequest) {
 
     // Get the approver profile names for all plans
     const approverIds = [...new Set((allWithApprover ?? []).map((p: any) => p.approver_id))];
-    let approverNames: Record<string, string> = {};
+    const approverNames: Record<string, string> = {};
     if (approverIds.length > 0) {
       const { data: approverProfiles } = await queryClient
         .from("profiles")
