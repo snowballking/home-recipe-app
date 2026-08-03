@@ -1,4 +1,4 @@
-export type PrimaryNavigationKey = "home" | "discover" | "create" | "plans" | "cart";
+export type PrimaryNavigationKey = "home" | "discover" | "create" | "plans" | "chefs";
 
 export interface PrimaryNavigationItem {
   key: PrimaryNavigationKey;
@@ -11,7 +11,7 @@ const PRIMARY_NAVIGATION: Omit<PrimaryNavigationItem, "active">[] = [
   { key: "discover", href: "/discover" },
   { key: "create", href: null },
   { key: "plans", href: "/explore" },
-  { key: "cart", href: null },
+  { key: "chefs", href: "/chefs" },
 ];
 
 function isActivePath(key: PrimaryNavigationKey, pathname: string): boolean {
@@ -20,6 +20,7 @@ function isActivePath(key: PrimaryNavigationKey, pathname: string): boolean {
   if (key === "plans") {
     return pathname === "/explore" || pathname.startsWith("/explore/") || pathname.startsWith("/dashboard/plans");
   }
+  if (key === "chefs") return pathname === "/chefs" || pathname.startsWith("/chefs/");
   return false;
 }
 

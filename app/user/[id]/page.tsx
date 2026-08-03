@@ -6,6 +6,7 @@ import { FollowButton } from "@/app/components/follow-button";
 import Link from "next/link";
 import { ChangePassword } from "./change-password";
 import type { Recipe, Profile, MealPlan } from "@/lib/types";
+import { orderProfileRecipes } from "@/lib/profile-recipes";
 
 const PROFILE_LINK_LABELS: { key: keyof Profile["external_links"]; label: string; icon: string }[] = [
   { key: "instagram", label: "Instagram", icon: "📷" },
@@ -39,20 +40,16 @@ export default async function UserProfilePage({ params }: PageProps) {
   const isOwner = viewer?.id === id;
   const viewerEmail = isOwner ? viewer?.email ?? null : null;
 
-  // Get user's public ORIGINAL recipes — ones they created themselves, not
-  // imported. An imported recipe carries a source_url (and, once assigned, a
-  // chef_id pointing at the real external creator), so a profile only shows
-  // its owner's own creations.
+  // A member's public profile includes each public recipe they added. Originals
+  // and variations are displayed before imports so their own work leads.
   const { data: recipes } = await supabase
     .from("recipes")
     .select("*")
     .eq("user_id", id)
     .eq("is_public", true)
-    .is("source_url", null)
-    .is("chef_id", null)
     .order("created_at", { ascending: false });
 
-  const userRecipes = (recipes ?? []) as Recipe[];
+  const userRecipes = orderProfileRecipes((recipes ?? []) as Recipe[]);
 
   // Public meal plans shared by this user
   const { data: sharedPlans } = await supabase
@@ -272,9 +269,9 @@ export default async function UserProfilePage({ params }: PageProps) {
               </p>
             </div>
           ) : (
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div data-testid="profile-recipe-grid" className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {userRecipes.map((recipe) => (
-                <RecipeCard key={recipe.id} recipe={recipe} showAuthor={false} />
+                <RecipeCard key={recipe.id} recipe={recipe} showAuthor={false} compact />
               ))}
             </div>
           )}

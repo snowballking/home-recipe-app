@@ -105,21 +105,25 @@ describe("NavBar profile menu", () => {
 });
 
 describe("NavBar mobile primary navigation", () => {
-  it("keeps the five destinations while giving standard tabs 24-pixel icons and 12-pixel labels", async () => {
+  it("links mobile users to Chefs and keeps Cart as a header coming-soon control", async () => {
     renderNavBar();
     const mobileNav = screen.getByRole("navigation", { name: "Mobile primary" });
+    const header = screen.getByRole("banner");
 
     expect(within(mobileNav).getByRole("link", { name: "Home" }).getAttribute("href")).toBe("/market");
     expect(within(mobileNav).getByRole("link", { name: "Discover" }).getAttribute("href")).toBe("/discover");
     expect(within(mobileNav).getByRole("link", { name: "Plans" }).getAttribute("href")).toBe("/explore");
+    expect(within(mobileNav).getByRole("link", { name: "Chefs" }).getAttribute("href")).toBe("/chefs");
     expect(within(mobileNav).getByRole("button", { name: "Create" })).toBeTruthy();
-    const cart = within(mobileNav).getByRole("button", { name: "Cart" });
+    expect(within(mobileNav).queryByRole("button", { name: "Cart" })).toBeNull();
+
+    const cart = within(header).getByRole("button", { name: "Cart" });
     expect(cart.getAttribute("title")).toBe("Universal cart coming soon");
 
     await userEvent.setup().click(cart);
-    expect(within(mobileNav).getByRole("status").textContent).toBe("Coming Soon");
+    expect(within(header).getByRole("status").textContent).toBe("Coming Soon");
 
-    for (const key of ["home", "discover", "plans", "cart"] as const) {
+    for (const key of ["home", "discover", "plans", "chefs"] as const) {
       const iconClass = within(mobileNav).getByTestId(`mobile-nav-icon-${key}`).getAttribute("class") ?? "";
       const labelClass = within(mobileNav).getByTestId(`mobile-nav-label-${key}`).getAttribute("class") ?? "";
       expect(iconClass).toContain("h-6");

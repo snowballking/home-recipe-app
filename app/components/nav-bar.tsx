@@ -9,15 +9,17 @@ import { useAuth } from "@/lib/auth/auth-context";
 import { CreateMenu } from "@/app/components/create-menu";
 import { getPrimaryNavigation, type PrimaryNavigationKey } from "@/lib/navigation";
 
-const LABEL_KEYS: Record<PrimaryNavigationKey, "nav.home" | "nav.discover" | "nav.create" | "nav.plans" | "nav.cart"> = {
+const LABEL_KEYS: Record<PrimaryNavigationKey, "nav.home" | "nav.discover" | "nav.create" | "nav.plans" | "nav.chefs"> = {
   home: "nav.home",
   discover: "nav.discover",
   create: "nav.create",
   plans: "nav.plans",
-  cart: "nav.cart",
+  chefs: "nav.chefs",
 };
 
-function PrimaryNavIcon({ icon }: { icon: Exclude<PrimaryNavigationKey, "create"> }) {
+type NavigationIcon = Exclude<PrimaryNavigationKey, "create"> | "cart";
+
+function PrimaryNavIcon({ icon, className = "h-6 w-6" }: { icon: NavigationIcon; className?: string }) {
   let paths;
 
   switch (icon) {
@@ -45,6 +47,16 @@ function PrimaryNavIcon({ icon }: { icon: Exclude<PrimaryNavigationKey, "create"
         </>
       );
       break;
+    case "chefs":
+      paths = (
+        <>
+          <circle cx="12" cy="8" r="3" />
+          <path d="M5 21a7 7 0 0 1 14 0" />
+          <path d="M6 5.5c.5-1.8 2.1-3 4-3 1 0 1.9.3 2.6.9A4.5 4.5 0 0 1 18 7.8" />
+          <path d="M16.5 4.5 19 3l1.5 2.5" />
+        </>
+      );
+      break;
     case "cart":
       paths = (
         <>
@@ -66,7 +78,7 @@ function PrimaryNavIcon({ icon }: { icon: Exclude<PrimaryNavigationKey, "create"
       strokeWidth="1.9"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className="h-6 w-6"
+      className={className}
     >
       {paths}
     </svg>
@@ -172,7 +184,7 @@ function ProfileMenu({ userId, displayName, onLogout, loggingOut }: ProfileMenuP
   );
 }
 
-function CartComingSoonButton({ mobile = false }: { mobile?: boolean }) {
+function CartComingSoonButton({ mobile = false, iconOnly = false }: { mobile?: boolean; iconOnly?: boolean }) {
   const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -197,12 +209,16 @@ function CartComingSoonButton({ mobile = false }: { mobile?: boolean }) {
         onClick={showMessage}
         className={mobile
           ? "flex min-h-12 flex-col items-center justify-center gap-1 py-1 font-semibold text-emerald-700 opacity-65 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:text-emerald-300"
-          : "hidden items-center gap-1 rounded-full px-3 py-2 text-sm font-medium text-emerald-700 opacity-65 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 sm:inline-flex dark:text-emerald-300"}
+          : iconOnly
+            ? "flex h-8 w-8 items-center justify-center rounded-full border border-orange-100 bg-white text-emerald-700 opacity-65 transition-opacity hover:border-orange-200 hover:bg-orange-50 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:border-stone-700 dark:bg-stone-900 dark:text-emerald-300 dark:hover:bg-stone-800"
+            : "hidden items-center gap-1 rounded-full px-3 py-2 text-sm font-medium text-emerald-700 opacity-65 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 sm:inline-flex dark:text-emerald-300"}
       >
-        {mobile ? <PrimaryNavIcon icon="cart" /> : <span aria-hidden="true">⌑</span>}
-        <span className={mobile ? "text-xs leading-none" : undefined} data-testid={mobile ? "mobile-nav-label-cart" : undefined}>
-          {t("nav.cart")}
-        </span>
+        <PrimaryNavIcon icon="cart" className={iconOnly ? "h-4 w-4" : undefined} />
+        {!iconOnly && (
+          <span className={mobile ? "text-xs leading-none" : undefined} data-testid={mobile ? "mobile-nav-label-cart" : undefined}>
+            {t("nav.cart")}
+          </span>
+        )}
       </button>
       {open && (
         <div
@@ -227,7 +243,7 @@ export function NavBar() {
   const supabase = createClient();
   const { locale, setLocale, t } = useLanguage();
   const navigation = getPrimaryNavigation(pathname);
-  const desktopLinks = navigation.filter((item) => item.href && item.key !== "create" && item.key !== "cart");
+  const desktopLinks = navigation.filter((item) => item.href && item.key !== "create");
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -270,7 +286,7 @@ export function NavBar() {
 
           <div className="flex items-center gap-1.5 sm:gap-2">
             <CreateMenu className="hidden sm:inline-flex" />
-            <CartComingSoonButton />
+            <CartComingSoonButton iconOnly />
 
             {isAdmin && (
               <Link
@@ -319,15 +335,6 @@ export function NavBar() {
               <div key={item.key} className="-mt-7 flex justify-center">
                 <CreateMenu className="inline-flex min-h-12 rounded-full px-4 shadow-lg" />
               </div>
-            );
-          }
-
-          if (item.key === "cart") {
-            return (
-              <CartComingSoonButton
-                key={item.key}
-                mobile
-              />
             );
           }
 
