@@ -286,7 +286,6 @@ export function NavBar() {
 
           <div className="flex items-center gap-1.5 sm:gap-2">
             <CreateMenu className="hidden sm:inline-flex" />
-            <CartComingSoonButton iconOnly />
 
             {isAdmin && (
               <Link
@@ -296,6 +295,8 @@ export function NavBar() {
                 {t("nav.admin")}
               </Link>
             )}
+
+            <CartComingSoonButton iconOnly />
 
             <button
               type="button"

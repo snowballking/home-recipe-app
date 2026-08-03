@@ -46,8 +46,12 @@ const recipe: Recipe = {
 };
 
 describe("RecipeCard Chef credit", () => {
-  it("renders a non-link Chef credit overlay for recipes assigned to a Chef", () => {
-    const chefRecipe = { ...recipe, chefs: { id: "chef-mei", name: "Chef Mei" } } as Recipe;
+  it("places the non-link Chef credit in the image before top-right badges", () => {
+    const chefRecipe = {
+      ...recipe,
+      hero_image_url: "https://example.com/laksa.jpg",
+      chefs: { id: "chef-mei", name: "Chef Mei" },
+    } as Recipe;
 
     render(
       <LanguageProvider>
@@ -55,7 +59,14 @@ describe("RecipeCard Chef credit", () => {
       </LanguageProvider>,
     );
 
-    expect(screen.getByText("By Chef Mei")).toBeTruthy();
+    const credit = screen.getByText("By Chef Mei").parentElement;
+    const imageContainer = screen.getByRole("img", { name: "Laksa" }).parentElement?.parentElement;
+    const originalBadge = screen.getByText("⭐ User's Original");
+
+    if (!credit || !imageContainer) throw new Error("Expected Chef credit and image container");
+
+    expect(imageContainer.contains(credit)).toBe(true);
+    expect(credit.compareDocumentPosition(originalBadge) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByText("Chef")).toBeTruthy();
     expect(screen.queryByRole("link", { name: /Chef Mei/ })).toBeNull();
   });

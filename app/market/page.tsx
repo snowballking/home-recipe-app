@@ -8,9 +8,18 @@ import { filterFeedRecipes, type FeedTab } from "@/lib/feed";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { createClient } from "@/lib/supabase/client";
 
+type ChefRelationship = { id: string; name: string };
+
 type PublicRecipe = Omit<RecipeFeedRecipe, "chef"> & {
-  chefs?: { id: string; name: string } | null;
+  chefs?: ChefRelationship | ChefRelationship[] | null;
 };
+
+function mapPublicRecipeToFeedRecipe({ chefs, ...recipe }: PublicRecipe): RecipeFeedRecipe {
+  return {
+    ...recipe,
+    chef: Array.isArray(chefs) ? chefs[0] ?? null : chefs ?? null,
+  };
+}
 
 const HOME_RECIPE_FIELDS =
   "id,user_id,title,title_zh,description,description_zh,hero_image_url,image_source,original_recipe_id,save_count,comment_count,chefs(id,name)";
@@ -49,10 +58,7 @@ export default function HomePage() {
         : Promise.resolve({ data: [] as { recipe_id: string }[] }),
     ]);
 
-    const withChefs = ((publicRecipes ?? []) as unknown as PublicRecipe[]).map((recipe) => ({
-      ...recipe,
-      chef: recipe.chefs ?? null,
-    }));
+    const withChefs = (publicRecipes ?? []).map((recipe: PublicRecipe) => mapPublicRecipeToFeedRecipe(recipe));
 
     setRecipes(withChefs);
     setFollowedUserIds(new Set((followsResult.data ?? []).map((follow) => follow.following_id)));

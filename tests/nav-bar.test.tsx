@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   refresh: vi.fn(),
   signOut: vi.fn().mockResolvedValue({ error: null }),
+  isAdmin: false,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -18,7 +19,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/auth/auth-context", () => ({
   useAuth: () => ({
     user: { id: "user-1", email: "freddie@example.com" },
-    isAdmin: false,
+    isAdmin: mocks.isAdmin,
     displayName: "Freddie",
     loading: false,
   }),
@@ -41,6 +42,7 @@ describe("NavBar profile menu", () => {
     mocks.push.mockClear();
     mocks.refresh.mockClear();
     mocks.signOut.mockClear();
+    mocks.isAdmin = false;
   });
 
   it("opens explicit profile actions from the avatar instead of showing a standalone logout arrow", async () => {
@@ -130,5 +132,19 @@ describe("NavBar mobile primary navigation", () => {
       expect(iconClass).toContain("w-6");
       expect(labelClass).toContain("text-xs");
     }
+  });
+});
+
+describe("NavBar header actions", () => {
+  it("keeps Cart immediately next to the locale control for administrators", () => {
+    mocks.isAdmin = true;
+    renderNavBar();
+
+    const header = screen.getByRole("banner");
+    const cart = within(header).getByRole("button", { name: "Cart" });
+    const locale = within(header).getByRole("button", { name: "中文" });
+
+    expect(within(header).getByRole("link", { name: /Admin/ })).toBeTruthy();
+    expect(cart.parentElement?.nextElementSibling).toBe(locale);
   });
 });
