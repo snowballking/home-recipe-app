@@ -18,10 +18,8 @@ export function RecipeCard({ recipe, showAuthor = true, compact = false }: Recip
   const displayTitle = (locale === "zh" && recipe.title_zh) ? recipe.title_zh : recipe.title;
 
   return (
-    <Link
-      href={`/recipe/${recipe.id}`}
-      className="group flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 dark:border-zinc-800 dark:bg-zinc-900"
-    >
+    <div className="group relative flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 dark:border-zinc-800 dark:bg-zinc-900">
+      <Link href={`/recipe/${recipe.id}`} className="flex flex-1 flex-col">
       {/* Image */}
       <div className={`relative overflow-hidden bg-zinc-100 dark:bg-zinc-800 ${compact ? "aspect-[16/9]" : "aspect-[4/3]"}`}>
         {recipe.hero_image_url ? (
@@ -66,12 +64,6 @@ export function RecipeCard({ recipe, showAuthor = true, compact = false }: Recip
           {displayTitle}
         </h3>
 
-        {showAuthor && recipe.author_name && (
-          <p className={`mt-1 text-zinc-500 dark:text-zinc-400 ${compact ? "text-[11px]" : "text-xs"}`}>
-            {t("recipe.by_chef")} {recipe.author_name}
-          </p>
-        )}
-
         <div className={compact ? "mt-1.5" : "mt-2"}>
           <StarRating
             rating={recipe.avg_rating}
@@ -110,6 +102,13 @@ export function RecipeCard({ recipe, showAuthor = true, compact = false }: Recip
           </div>
         )}
       </div>
-    </Link>
+      </Link>
+      {showAuthor && recipe.chefs && (
+        <div className="absolute left-2 top-2 flex max-w-[calc(100%-1rem)] items-center gap-1.5 rounded-full bg-stone-950/75 px-2 py-1 text-[10px] font-semibold text-white shadow-sm">
+          <span className="truncate">{t("recipe.by_chef")} {recipe.chefs.name}</span>
+          <span className="shrink-0 rounded-full bg-orange-400 px-1.5 py-px text-[9px] font-bold text-stone-950">{t("recipe.chef_role")}</span>
+        </div>
+      )}
+    </div>
   );
 }

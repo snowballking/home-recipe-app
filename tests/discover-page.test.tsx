@@ -4,25 +4,44 @@ import { describe, expect, it, vi } from "vitest";
 import DiscoverPage from "@/app/discover/page";
 import { LanguageProvider } from "@/lib/i18n/language-context";
 
+const mocks = vi.hoisted(() => {
+  const recipeQuery = {
+    select: vi.fn(),
+    eq: vi.fn(),
+    order: vi.fn(),
+    limit: vi.fn(),
+  };
+  recipeQuery.select.mockReturnValue(recipeQuery);
+  recipeQuery.eq.mockReturnValue(recipeQuery);
+  recipeQuery.order.mockReturnValue(recipeQuery);
+  recipeQuery.limit.mockResolvedValue({
+    data: [
+      { id: "assigned", title: "Chef laksa", chefs: { id: "chef-mei", name: "Chef Mei" } },
+      { id: "unassigned", title: "Community soup", chefs: null },
+    ],
+    error: null,
+    count: null,
+    status: 200,
+    statusText: "OK",
+  });
+
+  return {
+    recipeSelect: recipeQuery.select,
+    recipeQuery,
+    recipeCardProps: [] as Array<{ recipe: { chefs?: { id: string; name: string } | null } }>,
+  };
+});
+
 vi.mock("@/app/components/nav-bar", () => ({ NavBar: () => null }));
-vi.mock("@/app/components/recipe-card", () => ({ RecipeCard: () => null }));
+vi.mock("@/app/components/recipe-card", () => ({
+  RecipeCard: (props: { recipe: { chefs?: { id: string; name: string } | null } }) => {
+    mocks.recipeCardProps.push(props);
+    return <div data-testid="mock-recipe-card" />;
+  },
+}));
 
 vi.mock("@/lib/supabase/client", () => ({
-  createClient: () => {
-    const query = {
-      select: vi.fn(() => query),
-      eq: vi.fn(() => query),
-      order: vi.fn(() => query),
-      limit: vi.fn().mockResolvedValue({
-        data: [],
-        error: null,
-        count: null,
-        status: 200,
-        statusText: "OK",
-      }),
-    };
-    return { from: vi.fn(() => query) };
-  },
+  createClient: () => ({ from: vi.fn(() => mocks.recipeQuery) }),
 }));
 
 describe("DiscoverPage categories", () => {
@@ -34,7 +53,12 @@ describe("DiscoverPage categories", () => {
       </LanguageProvider>,
     );
 
-    await waitFor(() => expect(screen.getByText("No public recipes yet")).toBeTruthy());
+    await waitFor(() => expect(screen.getAllByTestId("mock-recipe-card")).toHaveLength(2));
+
+    expect(mocks.recipeSelect).toHaveBeenCalledWith("*, chefs(id,name)");
+    expect(mocks.recipeSelect).not.toHaveBeenCalledWith(expect.stringContaining("profiles(displayname)"));
+    expect(mocks.recipeCardProps[0]?.recipe.chefs).toEqual({ id: "chef-mei", name: "Chef Mei" });
+    expect(mocks.recipeCardProps[1]?.recipe.chefs).toBeNull();
 
     const categoryGroup = screen.getByTestId("discover-categories");
     const groupClass = categoryGroup.getAttribute("class") ?? "";

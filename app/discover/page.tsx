@@ -10,10 +10,6 @@ import { createClient } from "@/lib/supabase/client";
 import { RECIPE_CATEGORIES } from "@/lib/types";
 import type { Recipe, RecipeCategory } from "@/lib/types";
 
-type PublicRecipe = Recipe & {
-  profiles?: { displayname: string | null } | null;
-};
-
 type DiscoverMode = "latest" | "popular";
 
 const CATEGORY_BUTTON_CLASS =
@@ -33,15 +29,12 @@ export default function DiscoverPage() {
       setLoading(true);
       const { data } = await supabase
         .from("recipes")
-        .select("*, profiles(displayname)")
+        .select("*, chefs(id,name)")
         .eq("is_public", true)
         .order("created_at", { ascending: false })
         .limit(100);
 
-      setRecipes(((data ?? []) as PublicRecipe[]).map((recipe) => ({
-        ...recipe,
-        author_name: recipe.profiles?.displayname ?? "Anonymous",
-      })));
+      setRecipes((data ?? []) as Recipe[]);
       setLoading(false);
     }
 
