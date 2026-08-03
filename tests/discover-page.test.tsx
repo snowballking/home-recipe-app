@@ -16,8 +16,8 @@ const mocks = vi.hoisted(() => {
   recipeQuery.order.mockReturnValue(recipeQuery);
   recipeQuery.limit.mockResolvedValue({
     data: [
-      { id: "assigned", title: "Chef laksa", chefs: { id: "chef-mei", name: "Chef Mei" } },
-      { id: "unassigned", title: "Community soup", chefs: null },
+      { id: "assigned", title: "Chef laksa", chefs: { id: "chef-mei", name: "Chef Mei" }, profiles: { displayname: "Uploader" } },
+      { id: "unassigned", title: "Community soup", chefs: null, profiles: { displayname: "Mei" } },
     ],
     error: null,
     count: null,
@@ -28,13 +28,13 @@ const mocks = vi.hoisted(() => {
   return {
     recipeSelect: recipeQuery.select,
     recipeQuery,
-    recipeCardProps: [] as Array<{ recipe: { chefs?: { id: string; name: string } | null } }>,
+    recipeCardProps: [] as Array<{ recipe: { chefs?: { id: string; name: string } | null; author_name?: string } }>,
   };
 });
 
 vi.mock("@/app/components/nav-bar", () => ({ NavBar: () => null }));
 vi.mock("@/app/components/recipe-card", () => ({
-  RecipeCard: (props: { recipe: { chefs?: { id: string; name: string } | null } }) => {
+  RecipeCard: (props: { recipe: { chefs?: { id: string; name: string } | null; author_name?: string } }) => {
     mocks.recipeCardProps.push(props);
     return <div data-testid="mock-recipe-card" />;
   },
@@ -55,10 +55,10 @@ describe("DiscoverPage categories", () => {
 
     await waitFor(() => expect(screen.getAllByTestId("mock-recipe-card")).toHaveLength(2));
 
-    expect(mocks.recipeSelect).toHaveBeenCalledWith("*, chefs(id,name)");
-    expect(mocks.recipeSelect).not.toHaveBeenCalledWith(expect.stringContaining("profiles(displayname)"));
+    expect(mocks.recipeSelect).toHaveBeenCalledWith("*, chefs(id,name), profiles(displayname)");
     expect(mocks.recipeCardProps[0]?.recipe.chefs).toEqual({ id: "chef-mei", name: "Chef Mei" });
     expect(mocks.recipeCardProps[1]?.recipe.chefs).toBeNull();
+    expect(mocks.recipeCardProps[1]?.recipe.author_name).toBe("Mei");
 
     const categoryGroup = screen.getByTestId("discover-categories");
     const groupClass = categoryGroup.getAttribute("class") ?? "";

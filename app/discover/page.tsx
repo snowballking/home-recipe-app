@@ -12,6 +12,10 @@ import type { Recipe, RecipeCategory } from "@/lib/types";
 
 type DiscoverMode = "latest" | "popular";
 
+type PublicRecipe = Omit<Recipe, "profiles"> & {
+  profiles?: { displayname: string | null } | null;
+};
+
 const CATEGORY_BUTTON_CLASS =
   "flex min-h-9 min-w-0 items-center justify-center gap-1 whitespace-normal rounded-2xl px-1.5 py-1.5 text-[10px] font-semibold leading-tight transition-colors sm:min-h-0 sm:shrink-0 sm:rounded-full sm:px-3.5 sm:py-2 sm:text-sm";
 
@@ -29,12 +33,15 @@ export default function DiscoverPage() {
       setLoading(true);
       const { data } = await supabase
         .from("recipes")
-        .select("*, chefs(id,name)")
+        .select("*, chefs(id,name), profiles(displayname)")
         .eq("is_public", true)
         .order("created_at", { ascending: false })
         .limit(100);
 
-      setRecipes((data ?? []) as Recipe[]);
+      setRecipes(((data ?? []) as PublicRecipe[]).map(({ profiles, ...recipe }) => ({
+        ...recipe,
+        author_name: profiles?.displayname ?? undefined,
+      })));
       setLoading(false);
     }
 

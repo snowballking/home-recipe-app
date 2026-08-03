@@ -34,12 +34,6 @@ export function RecipeCard({ recipe, showAuthor = true, compact = false }: Recip
             </div>
           )}
         </Link>
-        {showAuthor && recipe.chefs && (
-          <div className="absolute left-2 top-2 flex max-w-[calc(100%-1rem)] items-center gap-1.5 rounded-full bg-stone-950/75 px-2 py-1 text-[10px] font-semibold text-white shadow-sm">
-            <span className="truncate">{t("recipe.by_chef")} {recipe.chefs.name}</span>
-            <span className="shrink-0 rounded-full bg-orange-400 px-1.5 py-px text-[9px] font-bold text-stone-950">{t("recipe.chef_role")}</span>
-          </div>
-        )}
         {/* Top-right badges stack */}
         <div className={`absolute flex flex-col items-end ${compact ? "right-1.5 top-1.5 gap-0.5" : "right-2 top-2 gap-1"}`}>
           {!recipe.source_url && !recipe.original_recipe_id && (
@@ -70,6 +64,21 @@ export function RecipeCard({ recipe, showAuthor = true, compact = false }: Recip
         <h3 className={`line-clamp-2 font-semibold text-zinc-900 dark:text-zinc-50 ${compact ? "text-xs" : "text-sm"}`}>
           {displayTitle}
         </h3>
+
+        {showAuthor && recipe.chefs && (
+          <p className={`mt-1 text-zinc-500 dark:text-zinc-400 ${compact ? "text-[11px]" : "text-xs"}`}>
+            {t("recipe.by_chef")} {recipe.chefs.name}{" "}
+            <span className="rounded-full bg-orange-100 px-1.5 py-px text-[9px] font-bold text-orange-700 dark:bg-orange-950 dark:text-orange-300">
+              {t("recipe.chef_role")}
+            </span>
+          </p>
+        )}
+
+        {showAuthor && !recipe.chefs && !recipe.source_url && !recipe.original_recipe_id && recipe.author_name && (
+          <p className={`mt-1 text-zinc-500 dark:text-zinc-400 ${compact ? "text-[11px]" : "text-xs"}`}>
+            {t("recipe.by_chef")} {recipe.author_name}
+          </p>
+        )}
 
         <div className={compact ? "mt-1.5" : "mt-2"}>
           <StarRating

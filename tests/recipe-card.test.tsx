@@ -46,7 +46,7 @@ const recipe: Recipe = {
 };
 
 describe("RecipeCard Chef credit", () => {
-  it("places the non-link Chef credit in the image before top-right badges", () => {
+  it("places the non-link Chef credit under the title while preserving the original badge", () => {
     const chefRecipe = {
       ...recipe,
       hero_image_url: "https://example.com/laksa.jpg",
@@ -59,20 +59,41 @@ describe("RecipeCard Chef credit", () => {
       </LanguageProvider>,
     );
 
-    const credit = screen.getByText("By Chef Mei").parentElement;
+    const credit = screen.getByText("By Chef Mei");
+    const title = screen.getByRole("heading", { name: "Laksa" });
     const imageContainer = screen.getByRole("img", { name: "Laksa" }).parentElement?.parentElement;
-    const originalBadge = screen.getByText("⭐ User's Original");
 
     if (!credit || !imageContainer) throw new Error("Expected Chef credit and image container");
 
-    expect(imageContainer.contains(credit)).toBe(true);
-    expect(credit.compareDocumentPosition(originalBadge) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(title.compareDocumentPosition(credit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(imageContainer.contains(credit)).toBe(false);
+    expect(screen.getByText("⭐ User's Original")).toBeTruthy();
     expect(screen.getByText("Chef")).toBeTruthy();
-    expect(screen.queryByRole("link", { name: /Chef Mei/ })).toBeNull();
+    const chefMentionLink = screen.queryByRole("link", { name: /Chef Mei/ });
+    expect(chefMentionLink?.getAttribute("href") ?? "").not.toMatch(/^\/chefs\//);
   });
 
-  it("omits creator credit when no Chef relationship is present", () => {
-    const unassignedRecipe = { ...recipe, author_name: "Mei", chefs: null } as Recipe;
+  it("credits a user's original recipe to its uploader under the title", () => {
+    const userOriginal = { ...recipe, author_name: "Mei", chefs: null } as Recipe;
+
+    render(
+      <LanguageProvider>
+        <RecipeCard recipe={userOriginal} />
+      </LanguageProvider>,
+    );
+
+    expect(screen.getByText("By Mei")).toBeTruthy();
+    expect(screen.getByText("⭐ User's Original")).toBeTruthy();
+    expect(screen.queryByText("Chef")).toBeNull();
+  });
+
+  it("omits creator credit for an unassigned imported recipe", () => {
+    const unassignedRecipe = {
+      ...recipe,
+      author_name: "Mei",
+      chefs: null,
+      source_url: "https://example.com/imported",
+    } as Recipe;
 
     render(
       <LanguageProvider>
