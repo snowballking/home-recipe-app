@@ -33,6 +33,7 @@
 - [ ] Recipe content auto-translation (EN↔中文) — `→ FEATURES §7`
 - [ ] CS chatbot + Telegram escalation to owner — `→ FEATURES §6`
 - [ ] PWA + offline grocery list + hardening (load test, RLS review, backups) — `→ FEATURES §8`
+- [~] Clear lint debt so CI goes green — clear opportunistically while touching each file, not as one PR — `→ TECH_DEBT.md §1`
 
 ### Company & Legal
 - [ ] App name + domain + social handles — check in one pass: domain (.com + .sg), IG/RedNote/TikTok handles, ACRA name clash (bizfile.gov.sg), SG/regional trademark (IPOS). Register domain (~S$15–60/yr); grab handles immediately.
