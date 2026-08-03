@@ -7,12 +7,12 @@ const mocks = vi.hoisted(() => ({
   recipeSelect: vi.fn(),
   recipeLimit: vi.fn(),
   savesSelect: vi.fn(),
-  feedCardProps: [] as Array<{ isSaved?: boolean }>,
+  feedCardProps: [] as Array<{ isSaved?: boolean; recipe: { chef?: { id: string; name: string } | null } }>,
 }));
 
 vi.mock("@/app/components/nav-bar", () => ({ NavBar: () => null }));
 vi.mock("@/app/components/recipe-feed-card", () => ({
-  RecipeFeedCard: (props: { isSaved?: boolean }) => {
+  RecipeFeedCard: (props: { isSaved?: boolean; recipe: { chef?: { id: string; name: string } | null } }) => {
     mocks.feedCardProps.push(props);
     return <div data-testid="mock-feed-card" />;
   },
@@ -45,7 +45,7 @@ vi.mock("@/lib/supabase/client", () => ({
             original_recipe_id: null,
             save_count: 2,
             comment_count: 1,
-            profiles: { displayname: "Mei" },
+            chefs: { id: "chef-mei", name: "Chef Mei" },
           }],
           error: null,
         });
@@ -75,10 +75,12 @@ describe("Home feed loading", () => {
     await waitFor(() => expect(screen.getByTestId("mock-feed-card")).toBeTruthy());
 
     expect(mocks.recipeSelect).toHaveBeenCalledWith(
-      "id,user_id,title,title_zh,description,description_zh,hero_image_url,image_source,original_recipe_id,save_count,comment_count,profiles(displayname)",
+      "id,user_id,title,title_zh,description,description_zh,hero_image_url,image_source,original_recipe_id,save_count,comment_count,chefs(id,name)",
     );
+    expect(mocks.recipeSelect).not.toHaveBeenCalledWith(expect.stringContaining("profiles(displayname)"));
     expect(mocks.recipeLimit).toHaveBeenCalledWith(24);
     expect(mocks.savesSelect).toHaveBeenCalledWith("recipe_id");
     expect(mocks.feedCardProps[0]?.isSaved).toBe(true);
+    expect(mocks.feedCardProps[0]?.recipe.chef).toEqual({ id: "chef-mei", name: "Chef Mei" });
   });
 });

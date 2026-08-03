@@ -386,6 +386,7 @@ const translations = {
   "discover.empty": { en: "No public recipes yet", zh: "暂无公开食谱" },
 
   "recipe.by_chef": { en: "By", zh: "作者" },
+  "recipe.chef_role": { en: "Chef", zh: "厨师" },
 
   // ── Common ──────────────────────────────────────────
   "common.save": { en: "Save", zh: "保存" },

@@ -8,12 +8,12 @@ import { filterFeedRecipes, type FeedTab } from "@/lib/feed";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { createClient } from "@/lib/supabase/client";
 
-type PublicRecipe = RecipeFeedRecipe & {
-  profiles?: { displayname: string | null } | { displayname: string | null }[] | null;
+type PublicRecipe = Omit<RecipeFeedRecipe, "chef"> & {
+  chefs?: { id: string; name: string } | null;
 };
 
 const HOME_RECIPE_FIELDS =
-  "id,user_id,title,title_zh,description,description_zh,hero_image_url,image_source,original_recipe_id,save_count,comment_count,profiles(displayname)";
+  "id,user_id,title,title_zh,description,description_zh,hero_image_url,image_source,original_recipe_id,save_count,comment_count,chefs(id,name)";
 const HOME_RECIPE_LIMIT = 24;
 
 export default function HomePage() {
@@ -49,14 +49,12 @@ export default function HomePage() {
         : Promise.resolve({ data: [] as { recipe_id: string }[] }),
     ]);
 
-    const withAuthors = ((publicRecipes ?? []) as PublicRecipe[]).map((recipe) => ({
+    const withChefs = ((publicRecipes ?? []) as unknown as PublicRecipe[]).map((recipe) => ({
       ...recipe,
-      author_name: Array.isArray(recipe.profiles)
-        ? recipe.profiles[0]?.displayname ?? "Anonymous"
-        : recipe.profiles?.displayname ?? "Anonymous",
+      chef: recipe.chefs ?? null,
     }));
 
-    setRecipes(withAuthors);
+    setRecipes(withChefs);
     setFollowedUserIds(new Set((followsResult.data ?? []).map((follow) => follow.following_id)));
     setSavedRecipeIds(new Set((savesResult.data ?? []).map((save) => save.recipe_id)));
     setIsSignedIn(Boolean(user));
