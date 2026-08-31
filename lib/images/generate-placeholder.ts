@@ -10,7 +10,7 @@ export interface PlaceholderImageInput {
   ingredients?: { name: string }[];
 }
 
-const GEMINI_IMAGE_MODEL = "gemini-2.5-flash-image";
+const GEMINI_IMAGE_MODEL = "gemini-3.1-flash-image";
 
 export async function generatePlaceholderImage(
   input: PlaceholderImageInput,
@@ -34,11 +34,19 @@ export async function generatePlaceholderImage(
     .join(" ");
 
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_IMAGE_MODEL}:generateContent?key=${geminiApiKey}`,
+    `https://generativelanguage.googleapis.com/v1/models/${GEMINI_IMAGE_MODEL}:generateContent`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": geminiApiKey,
+      },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseModalities: ["Image"],
+        },
+      }),
       signal: AbortSignal.timeout(60_000),
     }
   );
