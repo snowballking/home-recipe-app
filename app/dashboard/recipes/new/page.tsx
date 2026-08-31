@@ -633,23 +633,26 @@ function NewRecipePageInner() {
           </div>
 
           {/* URL input */}
-          <div className="mt-3 flex gap-2">
+          <div
+            data-testid="import-url-actions"
+            className="mt-3 flex flex-col gap-2 sm:flex-row"
+          >
             <input
               type="url"
               value={importUrl}
               onChange={(e) => handleUrlChange(e.target.value)}
               placeholder={t("form.import_placeholder")}
-              className="flex-1 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-indigo-700 dark:bg-zinc-800 dark:text-zinc-100"
+              className="min-w-0 w-full flex-1 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-indigo-700 dark:bg-zinc-800 dark:text-zinc-100"
             />
             {importUrl.trim() && (
               <button
                 type="button"
                 onClick={handleImport}
                 disabled={importing || !importUrl.trim()}
-                className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors whitespace-nowrap"
+                className="w-full rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:opacity-50 sm:w-auto whitespace-nowrap"
               >
                 {importing ? (
-                  <span className="flex items-center gap-2">
+                  <span className="flex items-center justify-center gap-2">
                     <svg
                       className="h-4 w-4 animate-spin"
                       viewBox="0 0 24 24"
@@ -718,7 +721,7 @@ function NewRecipePageInner() {
         )}
 
         {/* ── Recipe form ─────────────────────────────────────── */}
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6 pb-24 sm:pb-0">
           {/* Variation note — required when making a fork */}
           {forkParentId && (
             <div>
@@ -1269,18 +1272,22 @@ function NewRecipePageInner() {
           </div>
 
           {/* Submit */}
-          <div className="flex gap-3 pt-4">
+          <div
+            data-testid="recipe-save-actions"
+            className="fixed inset-x-0 z-40 flex gap-3 border-t border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur-sm sm:static sm:z-auto sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:pt-4 sm:dark:bg-transparent dark:border-zinc-700 dark:bg-zinc-900/95"
+            style={{ bottom: "calc(4rem + env(safe-area-inset-bottom, 0px))" }}
+          >
             <button
               type="submit"
               disabled={saving}
-              className="rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              className="flex-1 rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 disabled:opacity-50 sm:flex-none sm:py-2.5 sm:font-medium"
             >
               {saving ? t("form.saving") : t("form.save_recipe")}
             </button>
             <button
               type="button"
               onClick={() => router.back()}
-              className="rounded-lg border border-zinc-300 bg-white px-6 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+              className="shrink-0 rounded-lg border border-zinc-300 bg-white px-4 py-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50 sm:px-6 sm:py-2.5 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
             >
               {t("common.cancel")}
             </button>

@@ -604,7 +604,10 @@ export default function EditRecipePage() {
         </form>
 
         {/* Mobile sticky save bar — always visible at bottom */}
-        <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-zinc-200 bg-white/95 backdrop-blur-sm px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900/95" style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}>
+        <div
+          className="fixed left-0 right-0 z-40 border-t border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur-sm sm:hidden dark:border-zinc-700 dark:bg-zinc-900/95"
+          style={{ bottom: "calc(4rem + env(safe-area-inset-bottom, 0px))" }}
+        >
           <button
             type="button"
             disabled={saving}
