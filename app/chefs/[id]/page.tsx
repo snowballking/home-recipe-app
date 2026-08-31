@@ -40,7 +40,7 @@ export default function ChefProfilePage({ params }: { params: Promise<{ id: stri
 
   if (loading) {
     return (
-      <div className="min-h-full bg-zinc-50 dark:bg-zinc-950">
+      <div className="min-h-full bg-background">
         <NavBar />
         <p className="mt-16 text-center text-sm text-zinc-500">...</p>
       </div>
@@ -49,7 +49,7 @@ export default function ChefProfilePage({ params }: { params: Promise<{ id: stri
 
   if (!chef) {
     return (
-      <div className="min-h-full bg-zinc-50 dark:bg-zinc-950">
+      <div className="min-h-full bg-background">
         <NavBar />
         <p className="mt-16 text-center text-sm text-zinc-500">{t("chefs.no_chefs")}</p>
       </div>
@@ -60,7 +60,7 @@ export default function ChefProfilePage({ params }: { params: Promise<{ id: stri
     chef.source_site === "youtube" ? t("chefs.watch_youtube") : t("chefs.visit_channel");
 
   return (
-    <div className="min-h-full bg-zinc-50 dark:bg-zinc-950">
+    <div className="min-h-full bg-background">
       <NavBar />
       <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
         {/* Header */}

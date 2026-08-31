@@ -98,6 +98,13 @@ export async function extractWithHaiku(
 // It watches the video (visual frames + audio), identifies ingredients,
 // reads on-screen text, and extracts the full recipe.
 
+export class GeminiVideoTemporarilyUnavailableError extends Error {
+  constructor(readonly status: number) {
+    super("The video import service is temporarily busy. Please try again in a few minutes.");
+    this.name = "GeminiVideoTemporarilyUnavailableError";
+  }
+}
+
 export async function extractFromYouTubeVideo(
   youtubeUrl: string,
   geminiApiKey: string
@@ -121,39 +128,61 @@ Additional video-specific rules:
 - If the creator speaks in a non-English language, translate everything to English.
 - Estimate prep_time and cook_time from the video timestamps if possible.`;
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiApiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                file_data: {
-                  mime_type: "video/*",
-                  file_uri: youtubeUrl,
+  let res: Response | null = null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const attemptRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiApiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  file_data: {
+                    mime_type: "video/*",
+                    file_uri: youtubeUrl,
+                  },
                 },
-              },
-              { text: prompt },
-            ],
+                { text: prompt },
+              ],
+            },
+          ],
+          generationConfig: {
+            maxOutputTokens: 4096,
+            temperature: 0.1,
           },
-        ],
-        generationConfig: {
-          maxOutputTokens: 4096,
-          temperature: 0.1,
-        },
-      }),
-      // Video processing takes longer — allow up to 90 seconds
-      signal: AbortSignal.timeout(90_000),
-    }
-  );
+        }),
+        // Video processing takes longer — allow up to 90 seconds
+        signal: AbortSignal.timeout(90_000),
+      }
+    );
 
-  if (!res.ok) {
-    const errBody = await res.text();
-    console.error("Gemini video API error:", res.status, errBody);
-    throw new Error(`Gemini video extraction returned HTTP ${res.status}`);
+    if (attemptRes.ok) {
+      res = attemptRes;
+      break;
+    }
+
+    const errBody = await attemptRes.text();
+    console.error("Gemini video API error:", attemptRes.status, errBody);
+    const isTransient =
+      attemptRes.status === 408 ||
+      attemptRes.status === 429 ||
+      (attemptRes.status >= 500 && attemptRes.status <= 599);
+    if (!isTransient) {
+      throw new Error(`Gemini video extraction returned HTTP ${attemptRes.status}`);
+    }
+    if (attempt === 2) {
+      throw new GeminiVideoTemporarilyUnavailableError(attemptRes.status);
+    }
+
+    const delayMs = 750 * 2 ** attempt + Math.floor(Math.random() * 250);
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+
+  if (!res) {
+    throw new Error("Gemini video extraction failed without a response");
   }
 
   const data = await res.json();

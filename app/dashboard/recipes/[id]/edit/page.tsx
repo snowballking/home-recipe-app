@@ -190,7 +190,7 @@ export default function EditRecipePage() {
     if (!title.trim()) { setError("Recipe title is required"); return; }
     if (isPublic && !canPublishRecipe({ imageSource, isChef }).allowed) {
       setError(
-        "Public recipes need your own photo or an AI-generated image — imported photos can't be published. Upload a photo, generate an AI image, or set the recipe to Private."
+        "Public recipes need an image. Upload your own photo, generate an AI image, add an imported image, or set the recipe to Private."
       );
       return;
     }
@@ -237,17 +237,18 @@ export default function EditRecipePage() {
 
   const inputClass = "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500";
   const labelClass = "block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1";
+  const publishPolicy = canPublishRecipe({ imageSource, isChef });
 
   if (loading) {
     return (
-      <div className="min-h-full bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
+      <div className="min-h-full bg-background flex items-center justify-center">
         <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-full bg-zinc-50 dark:bg-zinc-950">
+    <div className="min-h-full bg-background">
       <div className="mx-auto max-w-2xl px-4 py-8">
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">Edit Recipe</h1>
 
@@ -530,13 +531,13 @@ export default function EditRecipePage() {
               </div>
             </div>
 
-            {/* IP policy: public recipes need a compliant photo */}
-            {isPublic && !canPublishRecipe({ imageSource, isChef }).allowed && (
+            {/* Public recipes need an image; imported media gets a soft caution. */}
+            {isPublic && (!publishPolicy.allowed || publishPolicy.warning) && (
               <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/40">
                 <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
-                  To protect creators&apos; copyright, public recipes need your own
-                  photo or an AI-generated image — photos imported from other
-                  sites can&apos;t be published.
+                  {publishPolicy.warning
+                    ? "You can continue with this imported image or video screenshot, but it may be copyrighted. For safer publishing, use your own photo or generate an AI image."
+                    : "Public recipes need an image. Upload your own photo, generate an AI image, or add an imported image before publishing."}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <button

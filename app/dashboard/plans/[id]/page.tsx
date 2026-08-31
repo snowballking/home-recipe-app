@@ -916,7 +916,7 @@ export default function MealPlanDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-full bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
+      <div className="min-h-full bg-background flex items-center justify-center">
         <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
       </div>
     );
@@ -924,7 +924,7 @@ export default function MealPlanDetailPage() {
 
   if (!plan) {
     return (
-      <div className="min-h-full bg-zinc-50 dark:bg-zinc-950 px-6 py-12">
+      <div className="min-h-full bg-background px-6 py-12">
         <div className="mx-auto max-w-6xl">
           <p className="text-zinc-600 dark:text-zinc-400">Plan not found</p>
         </div>
@@ -942,7 +942,7 @@ export default function MealPlanDetailPage() {
   };
 
   return (
-    <div className="min-h-full bg-zinc-50 dark:bg-zinc-950">
+    <div className="min-h-full bg-background">
       <div className="mx-auto max-w-7xl px-4 py-6 sm:py-8">
         {/* Header */}
         <div className="mb-6 sm:mb-8">

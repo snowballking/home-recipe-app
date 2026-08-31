@@ -78,7 +78,7 @@ export default function HomePage() {
   );
 
   return (
-    <div className="min-h-full bg-[#fffaf4] pb-20 dark:bg-stone-950 md:pb-8">
+    <div className="min-h-full bg-background pb-20 md:pb-8">
       <NavBar />
 
       <main className="mx-auto max-w-2xl px-4 py-7 sm:py-10">

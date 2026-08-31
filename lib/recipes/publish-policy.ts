@@ -1,15 +1,23 @@
-// IP-risk policy (ROADMAP weeks 1-2): publishing a recipe to the public
-// Market requires the author's own photo, an AI placeholder image, or a
-// licensed chef account. Scraped/imported photos may not be published.
+// IP-risk policy: every public recipe needs an image. Imported images and
+// video screenshots are allowed, but the UI must show a copyright caution
+// recommending the author's own photo or an AI-generated replacement.
 import type { ImageSource } from "@/lib/types";
 
 export function canPublishRecipe(opts: {
   imageSource: ImageSource | null;
+  // Kept in the API for existing call sites. Chef status no longer bypasses
+  // the requirement that every public recipe has a usable image.
   isChef: boolean;
-}): { allowed: boolean; reason?: "needs_own_photo" } {
-  if (opts.isChef) return { allowed: true };
-  if (opts.imageSource === "user_upload" || opts.imageSource === "ai_generated") {
-    return { allowed: true };
+}): {
+  allowed: boolean;
+  reason?: "needs_image";
+  warning?: "imported_image_copyright";
+} {
+  if (!opts.imageSource) {
+    return { allowed: false, reason: "needs_image" };
   }
-  return { allowed: false, reason: "needs_own_photo" };
+  if (opts.imageSource === "imported") {
+    return { allowed: true, warning: "imported_image_copyright" };
+  }
+  return { allowed: true };
 }

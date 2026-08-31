@@ -258,7 +258,7 @@ export function NavBar() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 border-b border-orange-100/90 bg-[#fffaf4]/90 backdrop-blur-xl dark:border-stone-800 dark:bg-stone-950/90">
+      <header className="sticky top-0 z-50 border-b border-orange-100/90 bg-[#f2d6ab] backdrop-blur-xl dark:border-stone-800">
         <div className="mx-auto flex min-h-14 max-w-6xl items-center justify-between gap-3 px-4">
           <Link
             href={user ? "/market" : "/"}
@@ -328,13 +328,13 @@ export function NavBar() {
 
       <nav
         aria-label="Mobile primary"
-        className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-5 border-t border-orange-100 bg-[#fffaf4]/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl md:hidden dark:border-stone-800 dark:bg-stone-950/95"
+        className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-5 border-t border-orange-100 bg-[#f2d6ab] px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl md:hidden dark:border-stone-800"
       >
         {navigation.map((item) => {
           if (item.key === "create") {
             return (
-              <div key={item.key} className="-mt-7 flex justify-center">
-                <CreateMenu className="inline-flex min-h-12 rounded-full px-4 shadow-lg" />
+              <div key={item.key} className="-mt-3 flex justify-center">
+                <CreateMenu iconOnly className="shadow-lg" />
               </div>
             );
           }

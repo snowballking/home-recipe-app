@@ -126,7 +126,7 @@ export default function NewMealPlanPage() {
     "block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1";
 
   return (
-    <div className="min-h-full bg-zinc-50 dark:bg-zinc-950">
+    <div className="min-h-full bg-background">
       <div className="mx-auto max-w-2xl px-4 py-8">
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
           Create New Meal Plan

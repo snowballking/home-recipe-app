@@ -75,7 +75,7 @@ export default function ChefsPage() {
   }, [entries, search]);
 
   return (
-    <div className="min-h-full bg-zinc-50 dark:bg-zinc-950">
+    <div className="min-h-full bg-background">
       <NavBar />
       <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
         <h1 className="text-xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-50">

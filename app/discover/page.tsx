@@ -67,7 +67,7 @@ export default function DiscoverPage() {
   const categories = RECIPE_CATEGORIES.filter((item) => item.value !== "all");
 
   return (
-    <div className="min-h-full bg-[#fffaf4] pb-20 dark:bg-stone-950 md:pb-8">
+    <div className="min-h-full bg-background pb-20 md:pb-8">
       <NavBar />
 
       <main className="mx-auto max-w-6xl px-4 py-7 sm:py-10">

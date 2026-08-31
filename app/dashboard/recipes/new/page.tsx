@@ -345,7 +345,7 @@ function NewRecipePageInner() {
 
     if (r.hero_image_url) {
       setHeroImageUrl(r.hero_image_url);
-      // Photo scraped from the source site — not publishable as-is
+      // Preserve provenance so the public form can show a copyright caution.
       setImageSource("imported");
     }
 
@@ -398,8 +398,9 @@ function NewRecipePageInner() {
       populateForm(data.recipe);
       setChefId(data.chef_id ?? null);
       setSourceUrl(importUrl.trim());
-      // IP policy: imported recipes start private
-      setIsPublic(false);
+      // Imported recipes are public by default. Imported media remains marked
+      // so users see the copyright caution before saving.
+      setIsPublic(true);
       setSuccessMsg(t("form.import_success"));
     } catch {
       setError(t("form.import_error"));
@@ -534,6 +535,7 @@ function NewRecipePageInner() {
     "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500";
   const labelClass =
     "block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1";
+  const publishPolicy = canPublishRecipe({ imageSource, isChef });
 
   const platformBadge = detectedPlatform && PLATFORM_INFO[detectedPlatform];
   const forkRequestId = searchParams.get("fork");
@@ -541,7 +543,7 @@ function NewRecipePageInner() {
   if (forkRequestId) {
     if (forkLoading || (!forkSource && !forkLoadError)) {
       return (
-        <div className="min-h-full bg-[#fffaf4] px-4 py-12 dark:bg-stone-950">
+        <div className="min-h-full bg-background px-4 py-12 dark:bg-stone-950">
           <p className="mx-auto max-w-3xl text-sm text-stone-600 dark:text-stone-300">
             {t("variation.loading")}
           </p>
@@ -551,7 +553,7 @@ function NewRecipePageInner() {
 
     if (forkLoadError || !forkSource) {
       return (
-        <div className="min-h-full bg-[#fffaf4] px-4 py-12 dark:bg-stone-950">
+        <div className="min-h-full bg-background px-4 py-12 dark:bg-stone-950">
           <div className="mx-auto max-w-3xl rounded-3xl border border-red-200 bg-white p-6 dark:border-red-900 dark:bg-stone-900">
             <p role="alert" className="text-sm text-red-700 dark:text-red-300">
               {forkLoadError || t("variation.source_error")}
@@ -577,7 +579,7 @@ function NewRecipePageInner() {
   }
 
   return (
-    <div className="min-h-full bg-zinc-50 dark:bg-zinc-950">
+    <div className="min-h-full bg-background">
       <div className="mx-auto max-w-2xl px-4 py-8">
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
           {forkParentId ? t("fork.form_heading") : t("form.add_new_recipe")}
@@ -1229,11 +1231,13 @@ function NewRecipePageInner() {
               </div>
             </div>
 
-            {/* IP policy: public recipes need a compliant photo */}
-            {isPublic && !canPublishRecipe({ imageSource, isChef }).allowed && (
+            {/* Public recipes need an image; imported media gets a soft caution. */}
+            {isPublic && (!publishPolicy.allowed || publishPolicy.warning) && (
               <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/40">
                 <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
-                  {t("form.publish_policy")}
+                  {publishPolicy.warning
+                    ? t("form.imported_image_caution")
+                    : t("form.publish_policy")}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <button
@@ -1291,7 +1295,7 @@ export default function NewRecipePage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-full items-center justify-center bg-zinc-50 dark:bg-zinc-950">
+        <div className="flex min-h-full items-center justify-center bg-background">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
         </div>
       }

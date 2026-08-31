@@ -45,7 +45,7 @@ export default function SavedRecipesPage() {
 
   if (authLoading || (userId && loadedUserId !== userId)) {
     return (
-      <div className="min-h-full bg-zinc-50 dark:bg-zinc-950">
+      <div className="min-h-full bg-background">
         <div className="flex min-h-64 items-center justify-center" role="status" aria-label="Loading saved recipes">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
         </div>
@@ -56,7 +56,7 @@ export default function SavedRecipesPage() {
   if (!userId) return null;
 
   return (
-    <div className="min-h-full bg-zinc-50 dark:bg-zinc-950">
+    <div className="min-h-full bg-background">
       <div className="mx-auto max-w-6xl px-4 py-8">
         <SavedRecipeCollection recipes={recipes} headingLevel="h1" />
       </div>

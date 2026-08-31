@@ -170,7 +170,7 @@ export function RecipeVariationEditor({
   }
 
   return (
-    <div className="min-h-full bg-[#fffaf4] px-4 py-8 dark:bg-stone-950">
+    <div className="min-h-full bg-background px-4 py-8 dark:bg-stone-950">
       <main className="mx-auto max-w-3xl">
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-orange-700 dark:text-orange-300">
           {t("fork.variation_tag")}
@@ -210,7 +210,7 @@ export function RecipeVariationEditor({
               rows={3}
               required
               placeholder={t("variation.summary_placeholder")}
-              className="mt-2 w-full rounded-2xl border border-stone-200 bg-[#fffaf4] px-4 py-3 text-sm text-stone-900 outline-none transition-colors placeholder:text-stone-400 focus:border-orange-400 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
+              className="mt-2 w-full rounded-2xl border border-stone-200 bg-background px-4 py-3 text-sm text-stone-900 outline-none transition-colors placeholder:text-stone-400 focus:border-orange-400 dark:border-stone-700 dark:bg-stone-950 dark:text-stone-100"
             />
           </section>
 

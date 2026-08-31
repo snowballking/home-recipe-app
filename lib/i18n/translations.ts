@@ -282,12 +282,12 @@ const translations = {
   "form.importing_video": { en: "Watching video...", zh: "正在观看视频..." },
   "form.import_youtube_wait": { en: "AI is watching the full video to extract ingredients and steps. This may take up to 60 seconds...", zh: "AI 正在观看完整视频以提取食材和步骤，最长可能需要 60 秒..." },
   "form.import_disclaimer": {
-    en: "I understand that imported recipes are for personal use. The AI will rephrase cooking instructions in its own words, but I am responsible for ensuring I have the right to share any recipe I make public.",
-    zh: "我理解导入的食谱仅供个人使用。AI 会用自己的语言改写烹饪步骤，但我有责任确保我有权公开分享任何食谱。",
+    en: "Imported recipes are public by default. The AI will rephrase cooking instructions in its own words, but you are responsible for ensuring you have the right to share the recipe and any imported image.",
+    zh: "导入的食谱默认公开。AI 会用自己的语言改写烹饪步骤，但你有责任确保自己有权分享该食谱及任何导入的图片。",
   },
   "form.import_success": {
-    en: "Recipe extracted with AI. Review the details below and save! Imported recipes start private to protect the original creator's copyright — you can publish after adding your own photo or an AI-generated image.",
-    zh: "AI 已提取食谱。请检查以下内容并保存！为保护原创作者的版权，导入的食谱默认私密——添加自己的照片或 AI 生成图片后即可公开。",
+    en: "Recipe extracted with AI and set to Public. Review the details below and save. You may keep the imported image, but using your own photo or an AI-generated image is safer for copyright.",
+    zh: "AI 已提取食谱并设为公开。请检查以下内容并保存。你可以保留导入的图片，但为降低版权风险，建议使用自己的照片或 AI 生成图片。",
   },
   "form.import_failed": { en: "Failed to import recipe.", zh: "食谱导入失败。" },
   "form.import_error": { en: "Something went wrong while importing the recipe.", zh: "导入食谱时出了点问题。" },
@@ -346,12 +346,16 @@ const translations = {
   "form.public_desc": { en: "Anyone can discover this recipe in the community", zh: "社区中的任何人都能看到这个食谱" },
   "form.private_desc": { en: "Only you can see this recipe", zh: "只有你能看到这个食谱" },
   "form.publish_policy": {
-    en: "To protect creators' copyright, public recipes need your own photo or an AI-generated image — photos imported from other sites can't be published.",
-    zh: "为保护创作者版权，公开食谱需要你自己的照片或 AI 生成图片——从其他网站导入的照片不能公开。",
+    en: "Public recipes need an image. Upload your own photo, generate an AI image, or add an imported image before publishing.",
+    zh: "公开食谱需要图片。请上传自己的照片、生成 AI 图片，或添加导入的图片后再发布。",
   },
   "form.publish_policy_error": {
-    en: "Public recipes need your own photo or an AI-generated image — imported photos can't be published. Upload a photo, generate an AI image, or set the recipe to Private.",
-    zh: "公开食谱需要你自己的照片或 AI 生成图片——导入的照片不能公开。请上传照片、生成 AI 图片，或将食谱设为私密。",
+    en: "Public recipes need an image. Upload your own photo, generate an AI image, add an imported image, or set the recipe to Private.",
+    zh: "公开食谱需要图片。请上传自己的照片、生成 AI 图片、添加导入的图片，或将食谱设为私密。",
+  },
+  "form.imported_image_caution": {
+    en: "You can continue with this imported image or video screenshot, but it may be copyrighted. For safer publishing, use your own photo or generate an AI image.",
+    zh: "你可以继续使用导入的图片或视频截图，但其可能受版权保护。为降低发布风险，建议使用自己的照片或生成 AI 图片。",
   },
   "form.upload_my_photo": { en: "📷 Upload my photo", zh: "📷 上传我的照片" },
   "form.generate_ai_image": { en: "✨ Generate AI image", zh: "✨ 生成 AI 图片" },

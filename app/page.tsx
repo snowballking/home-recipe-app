@@ -64,7 +64,7 @@ function LandingContent() {
     "h-11 w-full rounded-xl border border-stone-200 bg-white px-4 text-sm text-stone-900 outline-none transition-[border-color,box-shadow] placeholder:text-stone-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15";
 
   return (
-    <main className="relative min-h-dvh overflow-x-hidden bg-[#fffaf4] text-stone-950">
+    <main className="relative min-h-dvh overflow-x-hidden bg-background text-stone-950">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute left-1/2 top-[-14rem] h-[30rem] w-[30rem] -translate-x-1/2 rounded-full bg-orange-200/40 blur-3xl sm:left-[18%] sm:h-[34rem] sm:w-[34rem]"
@@ -223,7 +223,7 @@ export default function Home() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-[#fffaf4]">
+        <div className="flex min-h-screen items-center justify-center bg-background">
           <p className="text-sm text-stone-500">Loading…</p>
         </div>
       }

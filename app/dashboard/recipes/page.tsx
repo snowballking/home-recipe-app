@@ -75,14 +75,14 @@ export default function MyRecipesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-full bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
+      <div className="min-h-full bg-background flex items-center justify-center">
         <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-full bg-zinc-50 dark:bg-zinc-950">
+    <div className="min-h-full bg-background">
       <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
         <div className="mb-5 sm:mb-6">
           <CollectionToggle kind="recipes" active="mine" />

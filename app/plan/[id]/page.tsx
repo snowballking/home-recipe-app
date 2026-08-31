@@ -98,7 +98,7 @@ export default async function PublicMealPlanPage({
   });
 
   return (
-    <div className="min-h-full bg-zinc-50 dark:bg-zinc-950">
+    <div className="min-h-full bg-background">
       <NavBar />
 
       <div className="mx-auto max-w-4xl px-4 py-6 sm:py-8">

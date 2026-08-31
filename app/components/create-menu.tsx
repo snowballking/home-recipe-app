@@ -7,9 +7,10 @@ import { useLanguage } from "@/lib/i18n/language-context";
 
 interface CreateMenuProps {
   className?: string;
+  iconOnly?: boolean;
 }
 
-export function CreateMenu({ className = "" }: CreateMenuProps) {
+export function CreateMenu({ className = "", iconOnly = false }: CreateMenuProps) {
   const [open, setOpen] = useState(false);
   const { t } = useLanguage();
 
@@ -29,10 +30,13 @@ export function CreateMenu({ className = "" }: CreateMenuProps) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`items-center justify-center gap-1.5 rounded-full bg-orange-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 ${className}`}
+        aria-label={iconOnly ? t("nav.create") : undefined}
+        className={`${iconOnly
+          ? "inline-flex h-10 w-10 items-center justify-center rounded-full bg-orange-600 p-0 text-xl font-semibold leading-none text-white shadow-sm transition-colors hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+          : "items-center justify-center gap-1.5 rounded-full bg-orange-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"} ${className}`}
       >
         <span aria-hidden>＋</span>
-        {t("nav.create")}
+        {!iconOnly && t("nav.create")}
       </button>
 
       {open && createPortal(
@@ -46,7 +50,7 @@ export function CreateMenu({ className = "" }: CreateMenuProps) {
             role="dialog"
             aria-modal="true"
             aria-labelledby="create-menu-title"
-            className="w-full max-w-md rounded-3xl bg-[#fffaf4] p-5 shadow-2xl dark:bg-stone-950"
+            className="w-full max-w-md rounded-3xl bg-background p-5 shadow-2xl dark:bg-stone-950"
           >
             <div className="flex items-center justify-between gap-3">
               <h2 id="create-menu-title" className="text-lg font-bold text-stone-950 dark:text-stone-50">

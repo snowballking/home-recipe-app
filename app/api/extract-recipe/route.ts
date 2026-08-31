@@ -2,7 +2,13 @@ import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { detectPlatform, extractYouTubeVideoId } from "@/lib/extract/detect-platform";
 import { fetchWebsiteContent, fetchPageImage } from "@/lib/extract/website";
-import { extractWithHaiku, extractFromYouTubeVideo, normaliseIngredientUnits } from "@/lib/extract/ai-extract";
+import { fetchYouTubeTranscript } from "@/lib/extract/youtube";
+import {
+  extractWithHaiku,
+  extractFromYouTubeVideo,
+  GeminiVideoTemporarilyUnavailableError,
+  normaliseIngredientUnits,
+} from "@/lib/extract/ai-extract";
 
 // ── POST /api/extract-recipe ────────────────────────────────────
 // Accepts: { url: "..." } → auto-detect platform, extract recipe via AI
@@ -88,6 +94,7 @@ export async function POST(request: NextRequest) {
     let recipe: Record<string, unknown>;
     let imageUrl: string | null = null;
     let chefId: string | null = null;
+    let pipelineLabel = `haiku-${platform}`;
 
     if (platform === "youtube") {
       // ── YouTube: Gemini watches the video directly ──────────
@@ -98,12 +105,13 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const [geminiRecipe, thumbnail, channel] = await Promise.all([
-        extractFromYouTubeVideo(url, geminiKey),
+      const [youtubeResult, thumbnail, channel] = await Promise.all([
+        extractYouTubeWithFallback(url, geminiKey, anthropicKey),
         Promise.resolve(getYouTubeThumbnail(url)),
         fetchYouTubeChannel(url),
       ]);
-      recipe = geminiRecipe;
+      recipe = youtubeResult.recipe;
+      pipelineLabel = youtubeResult.pipeline;
       imageUrl = thumbnail;
       if (channel) {
         const { data: upsertedChefId } = await supabase.rpc("upsert_chef_for_channel", {
@@ -142,12 +150,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const pipelineLabel = platform === "youtube" ? "gemini-youtube" : `haiku-${platform}`;
     return Response.json({ recipe, pipeline: pipelineLabel, chef_id: chefId });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Extraction failed";
     console.error(`${platform} extraction error:`, msg);
     return Response.json({ error: msg }, { status: 500 });
+  }
+}
+
+async function extractYouTubeWithFallback(
+  url: string,
+  geminiApiKey: string,
+  anthropicApiKey: string
+): Promise<{
+  recipe: Record<string, unknown>;
+  pipeline: "gemini-youtube" | "haiku-youtube-fallback";
+}> {
+  try {
+    return {
+      recipe: await extractFromYouTubeVideo(url, geminiApiKey),
+      pipeline: "gemini-youtube",
+    };
+  } catch (err: unknown) {
+    if (!(err instanceof GeminiVideoTemporarilyUnavailableError)) throw err;
+
+    console.warn(JSON.stringify({
+      level: "warning",
+      message: "Gemini video extraction unavailable; using transcript fallback",
+      status: err.status,
+    }));
+    const transcript = await fetchYouTubeTranscript(url);
+    return {
+      recipe: await extractWithHaiku(transcript, anthropicApiKey),
+      pipeline: "haiku-youtube-fallback",
+    };
   }
 }
 

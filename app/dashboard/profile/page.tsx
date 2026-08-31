@@ -159,7 +159,7 @@ export default function EditProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-full bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
+      <div className="min-h-full bg-background flex items-center justify-center">
         <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
       </div>
     );
@@ -169,7 +169,7 @@ export default function EditProfilePage() {
   const labelClass = "block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1";
 
   return (
-    <div className="min-h-full bg-zinc-50 dark:bg-zinc-950">
+    <div className="min-h-full bg-background">
       <div className="mx-auto max-w-lg px-4 py-8">
         <div className="flex items-start justify-between gap-4">
           <div>

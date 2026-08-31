@@ -156,7 +156,7 @@ export default async function RecipeDetailPage({ params }: PageProps) {
   const altIngredients = (typedRecipe.alternative_ingredients ?? []) as { name: string; description: string }[];
 
   return (
-    <div className="min-h-full bg-zinc-50 dark:bg-zinc-950">
+    <div className="min-h-full bg-background">
       <NavBar />
 
       <div className="mx-auto max-w-3xl px-4 py-8">

@@ -20,7 +20,7 @@ export function RecipeVariationChanges({ diff }: { diff: unknown }) {
     <section
       role="region"
       aria-labelledby="variation-changes-heading"
-      className="mt-4 rounded-3xl border border-orange-100 bg-[#fffaf4] p-5 shadow-sm dark:border-stone-800 dark:bg-stone-900"
+      className="mt-4 rounded-3xl border border-orange-100 bg-background p-5 shadow-sm dark:border-stone-800 dark:bg-stone-900"
     >
       <div className="flex items-center gap-3">
         <span aria-hidden="true" className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-100 text-lg dark:bg-orange-950">

@@ -112,11 +112,18 @@ describe("NavBar mobile primary navigation", () => {
     const mobileNav = screen.getByRole("navigation", { name: "Mobile primary" });
     const header = screen.getByRole("banner");
 
+    expect(header.getAttribute("class")).toContain("bg-[#f2d6ab]");
+    expect(mobileNav.getAttribute("class")).toContain("bg-[#f2d6ab]");
     expect(within(mobileNav).getByRole("link", { name: "Home" }).getAttribute("href")).toBe("/market");
     expect(within(mobileNav).getByRole("link", { name: "Discover" }).getAttribute("href")).toBe("/discover");
     expect(within(mobileNav).getByRole("link", { name: "Plans" }).getAttribute("href")).toBe("/explore");
     expect(within(mobileNav).getByRole("link", { name: "Chefs" }).getAttribute("href")).toBe("/chefs");
-    expect(within(mobileNav).getByRole("button", { name: "Create" })).toBeTruthy();
+    const createButton = within(mobileNav).getByRole("button", { name: "Create" });
+    expect(createButton).toBeTruthy();
+    expect(createButton.textContent?.trim()).toBe("＋");
+    expect(createButton.getAttribute("class")).toContain("h-10");
+    expect(createButton.getAttribute("class")).toContain("w-10");
+    expect(createButton.parentElement?.getAttribute("class")).toContain("-mt-3");
     expect(within(mobileNav).queryByRole("button", { name: "Cart" })).toBeNull();
 
     const cart = within(header).getByRole("button", { name: "Cart" });
@@ -132,6 +139,22 @@ describe("NavBar mobile primary navigation", () => {
       expect(iconClass).toContain("w-6");
       expect(labelClass).toContain("text-xs");
     }
+  });
+
+  it("keeps the compact Create action accessible in Chinese", async () => {
+    const user = userEvent.setup();
+    renderNavBar();
+
+    await user.click(screen.getByRole("button", { name: "中文" }));
+
+    const mobileNav = screen.getByRole("navigation", { name: "Mobile primary" });
+    const createButton = within(mobileNav).getByRole("button", { name: "创建" });
+    expect(createButton.textContent?.trim()).toBe("＋");
+    expect(createButton.getAttribute("class")).toContain("h-10");
+    expect(createButton.getAttribute("class")).toContain("w-10");
+    expect(createButton.parentElement?.getAttribute("class")).toContain("-mt-3");
+
+    await user.click(screen.getByRole("button", { name: "EN" }));
   });
 });
 
